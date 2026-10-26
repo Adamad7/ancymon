@@ -14,7 +14,18 @@ services:
       - "-httpListenAddr=:8428"
     restart: unless-stopped
 
-  # ancymon-server oraz caddy beda dodane w kolejnych krokach implementacji
+  caddy:
+    image: caddy:2.7.6-alpine
+    container_name: ancymon-caddy
+    # On Linux, host networking allows Caddy to proxy directly to localhost:50051 and localhost:8080
+    network_mode: "host"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
 
 volumes:
   vmdata:
+  caddy_data:
+  caddy_config:

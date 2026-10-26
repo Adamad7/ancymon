@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AncyMonPairingPayload",
+  "description": "Compact pairing payload encoded inside the terminal QR code for zero-typing onboarding of the Flutter mobile client.",
+  "type": "object",
+  "required": [
+    "ip",
+    "port",
+    "token",
+    "ca"
+  ],
+  "properties": {
+    "ip": {
+      "type": "string",
+      "description": "IPv4/IPv6 address or resolvable hostname of the central server on the local area network."
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 443,
+      "description": "TLS ingress port terminated by Caddy reverse proxy."
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Pre-shared key (PSK) bearer authentication secret token."
+    },
+    "ca": {
+      "type": "string",
+      "description": "Raw Base64-encoded DER representation of Caddy's internal ECDSA P-256 root CA certificate (without PEM headers or line breaks)."
+    }
+  },
+  "additionalProperties": false
+}

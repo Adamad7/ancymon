@@ -48,6 +48,10 @@ message TelemetryAck {
   bool success = 1;
   int64 acknowledged_timestamp = 2;
   string message = 3;
+  uint64 acknowledged_count = 4;      // Number of frames acknowledged in this stream/segment
+
+  // Reserved for future acknowledgement metadata
+  reserved 5 to 10;
 }
 
 // Telemetry streaming service operating over HTTP/2 gRPC

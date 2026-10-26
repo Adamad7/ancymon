@@ -1,28 +1,28 @@
 # Caddyfile - AncyMon Reverse Proxy & Internal ECDSA CA
-
 {
-    # Enable internal automated certificate authority
-    local_certs
+	# Enable internal automated certificate authority
+	local_certs
 }
 
 # Ingress listening on LAN TLS port 443
 :443 {
-    tls internal {
-        # Enforce elliptic curve ECDSA P-256 for minimal certificate size
-        curves p256
-    }
+	tls internal {
+		on_demand
+		# Enforce elliptic curve ECDSA P-256 (secp256r1) for minimal certificate size
+		curves secp256r1
+	}
 
-    # Direct gRPC HTTP/2 client streaming to ancymon-server (cleartext h2c)
-    @grpc protocol grpc
-    handle @grpc {
-        reverse_proxy h2c://127.0.0.1:50051
-    }
+	# Direct gRPC HTTP/2 client streaming to ancymon-server (cleartext h2c)
+	@grpc protocol grpc
+	handle @grpc {
+		reverse_proxy h2c://{$GRPC_UPSTREAM:127.0.0.1:50051}
+	}
 
-    # Direct GraphQL HTTPS queries and WebSocket subscriptions to ancymon-server
-    handle /graphql* {
-        reverse_proxy 127.0.0.1:8080
-    }
+	# Direct GraphQL HTTPS queries and WebSocket subscriptions to ancymon-server
+	handle /graphql* {
+		reverse_proxy {$GRAPHQL_UPSTREAM:127.0.0.1:8080}
+	}
 
-    # Default health/diagnostic response
-    respond "AncyMon Telemetry Gateway Online" 200
+	# Default health/diagnostic response
+	respond "AncyMon Telemetry Gateway Online" 200
 }

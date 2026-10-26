@@ -41,8 +41,8 @@ type MachineSummary {
   lastSeenTimestamp: Int!
   cpuUsagePercent: Float
   cpuTemperatureC: Float
-  networkRxBytesPerSec: Int
-  networkTxBytesPerSec: Int
+  networkRxBytesPerSec: Float
+  networkTxBytesPerSec: Float
 }
 
 """
