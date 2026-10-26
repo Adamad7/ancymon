@@ -8,46 +8,46 @@ description: >-
 
 # WAL Buffer Resilience Testing Runbook
 
-Ten skill zawiera procedury testowe dla bufora offline WAL (Segmented Write-Ahead Log) w module `ancymon-agent`.
+This skill outlines testing procedures and validation criteria for the offline segmented Write-Ahead Log (WAL) buffer in `ancymon-agent`.
 
 ---
 
-## 1. Wymagania Specyfikacji dla WAL
-* **Format:** Pliki segmentowe o stałym rozmiarze 1 MB w dedykowanym katalogu `./buffer/` (np. `segment_000001.wal`).
-* **Pamięć RAM:** Zużycie pamięci agenta musi pozostać stałe (~10–15 MB) niezależnie od czasu trwania rozłączenia sieciowego.
-* **Limit dysku:** Konfigurowalny limit (domyślnie 50 MB, co odpowiada maksymalnie 50 plikom segmentów).
-* **Eksmisja FIFO:** Po osiągnięciu limitu dysku najstarszy ukończony segment jest usuwany.
-* **Gwarancja kolejności (Chronological Replay):**
-  1. Podczas braku połączenia nowe metryki (1 Hz) trafiają do bieżącego aktywnego segmentu.
-  2. Po powrocie połączenia **nowe pomiary wciąż trafiają na ogon WAL** aż do pełnego opróżnienia zaległości.
-  3. Worker w tle wysyła zaległe segmenty w ścisłej kolejności chronologicznej (od najstarszego do najnowszego).
-  4. Po pełnym przesłaniu i potwierdzeniu przez serwer (gRPC ACK) segment jest usuwany z dysku.
-  5. Bezpośredni live streaming wznawia się dopiero po opróżnieniu wszystkich plików zaległości.
+## 1. Specification Requirements for WAL
+* **Storage Format**: Fixed-size 1 MB segment files stored in a dedicated `./buffer/` folder (e.g., `segment_000001.wal`).
+* **RAM Ceiling**: Memory footprint must remain strictly flat (~10–15 MB RSS) regardless of disconnection duration.
+* **Disk Ceiling**: Configurable maximum threshold (default: 50 MB, corresponding to up to 50 active segment files).
+* **FIFO Eviction Policy**: When directory reaches 50 MB, the oldest completed segment file must be deleted.
+* **Chronological Replay Guarantees**:
+  1. During network outage, incoming 1 Hz metrics divert into the active WAL segment.
+  2. Upon network restoration, **new measurements continue to append to the tail of the WAL** until backlog drains.
+  3. A background worker drains segments sequentially in strict chronological order (oldest to newest).
+  4. Each segment is unlinked from disk only after receiving a server acknowledgement (`TelemetryAck`).
+  5. Direct live streaming resumes seamlessly only when zero backlog files remain.
 
 ---
 
-## 2. Scenariusze Testowe
+## 2. Test Scenarios
 
-### Scenariusz A: Rotacja segmentów i zachowanie limitu RAM
-1. Uruchom agenta ze sztucznie zablokowanym adresem serwera gRPC (lub z adresem `127.0.0.1:9999`, gdzie nic nie nasłuchuje).
-2. Obserwuj katalog `./buffer/`:
-   - Sprawdź, czy po zgromadzeniu 1 MB telemetrii tworzy się kolejny plik `segment_000002.wal`.
-3. Monitoruj proces w systemie (`top`, `ps aux` lub test Go):
-   - Weryfikacja: pamięć RSS procesu nie powinna rosnąć liniowo, lecz ustabilizować się na poziomie ~10–15 MB.
+### Scenario A: Segment Rotation & Flat RAM Footprint
+1. Start the agent with an unreachable server target (e.g., `127.0.0.1:9999` with nothing listening).
+2. Monitor `./buffer/`:
+   - Confirm that once a segment reaches 1 MB of telemetry, `segment_000002.wal` is opened.
+3. Track process memory via system tools or Go benchmarks:
+   - Verification: Process RSS memory must stabilize around ~10–15 MB without linear growth.
 
-### Scenariusz B: Limit 50 MB i eksmisja FIFO
-1. Wygeneruj sztuczne dane wypełniające bufor do 50 segmentów po 1 MB.
-2. Wygeneruj 51. segment.
-3. Weryfikacja:
-   - Całkowity rozmiar katalogu `./buffer/` nie przekracza 50 MB.
-   - Plik `segment_000001.wal` został bezpiecznie usunięty (eksmisja najstarszego).
-   - W logach pojawia się czytelne ostrzeżenie o eksmisji FIFO.
+### Scenario B: 50 MB Ceiling & FIFO Eviction
+1. Populate the buffer directory with synthetic data up to 50 segments of 1 MB.
+2. Emit the 51st segment.
+3. Verification:
+   - Total directory size of `./buffer/` remains $\le 50$ MB.
+   - The oldest file `segment_000001.wal` is deleted.
+   - An explicit FIFO eviction warning is logged.
 
-### Scenariusz C: Chronologiczne odtwarzanie po powrocie łączności
-1. Zgromadź w buforze kilka segmentów (np. 3 segmenty z pomiarami z timestampami T1, T2, T3).
-2. Uruchom serwer gRPC (`ancymon-server`) i odblokuj komunikację.
-3. Weryfikacja po stronie serwera:
-   - Pomiary docierają w kolejności T1 -> T2 -> T3.
-   - Nowe pomiary (T4) generowane podczas draining nie wyprzedzają zaległych danych.
-   - Każdy segment jest usuwany z dysku agenta po odebraniu `TelemetryAck`.
-   - Po wysłaniu wszystkich segmentów agent przełącza się w normalny tryb strumieniowania na żywo.
+### Scenario C: Chronological Replay on Reconnect
+1. Accumulate several segments in the buffer with timestamps $T_1, T_2, T_3$.
+2. Launch `ancymon-server` and unblock network traffic.
+3. Verification:
+   - Server ingests metrics in exact order: $T_1 \to T_2 \to T_3$.
+   - New incoming frames ($T_4$) during replay do not leapfrog earlier frames.
+   - Each segment is removed only after `TelemetryAck` is received.
+   - The agent transitions to direct live streaming once backlog is completely drained.

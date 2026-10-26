@@ -1,13 +1,13 @@
 # ancymon-mobile
 
-Aplikacja mobilna AncyMon Client stworzona we frameworku Flutter (Android & iOS).
+Cross-platform mobile client application for Android and iOS built with Flutter and Dart.
 
-## Kluczowe Cechy
-- **Zarządzanie stanem**: Riverpod (`flutter_riverpod`).
-- **Klient GraphQL**: Ferry (`ferry`, `ferry_flutter`) ze 100% bezpieczeństwem typów i generacją modeli z `graphql/schema.graphql`.
-- **Dynamiczny SecurityContext**: Wstrzykiwanie certyfikatu CA ECDSA P-256 z kodu QR bez instalacji certyfikatów w systemie telefonu.
-- **Onboarding UX**: Skaner kodów QR (`mobile_scanner`) i bezpieczny magazyn danych (`flutter_secure_storage`).
-- **Interfejs UI**: Główny Dashboard (lista stacji, online/offline, swipe-to-delete) oraz Widok Szczegółowy (karty telemetryczne, wykresy `fl_chart` z filtrami czasowymi 1h, 6h, 12h, 24h, 3d, 7d i kalendarzem).
+## Key Features
+- **State Management**: Reactive state binding via `flutter_riverpod`.
+- **Ferry GraphQL Client**: 100% compile-time type safety with code generated from `graphql/schema.graphql` via `build_runner`.
+- **Dynamic SecurityContext**: Dynamic runtime injection of the server's ECDSA P-256 CA certificate from QR scan without OS-level root installation.
+- **Onboarding UX**: Camera QR code scanning (`mobile_scanner`) and secure credential persistence (`flutter_secure_storage`).
+- **User Interface**: Main Fleet Dashboard (online/offline badges, swipe-to-delete) and Workstation Detail View (hardware metric cards, interactive `fl_chart` historical views with 1h, 6h, 12h, 24h, 3d, 7d, and calendar filters).
 
-## Odpowiedzialny Agent AI
+## Responsible Subagent
 - **`ancymon-flutter-engineer`**

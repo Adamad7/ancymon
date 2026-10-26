@@ -2,111 +2,119 @@
 name: ancymon-workflow
 description: >-
   Use this skill for all tasks in the AncyMon project. It guides the primary agent through the mandatory
-  user interaction workflow: analyzing requests, generating a plan artifact with an interactive Proceed button
-  (RequestFeedback: true), delegating work to specialized subagents, presenting a summary of changes, and
+  user interaction workflow: analyzing requests, generating a plan artifact in Polish with an interactive Proceed button
+  (RequestFeedback: true), delegating work to specialized subagents in English, presenting a Polish summary of changes, and
   prompting the user via an interactive choice modal (ask_question) to commit and push changes to Git.
 ---
 
 # AncyMon Development & Git Orchestration Workflow
 
-Ten skill definiuje ścisły, powtarzalny proces realizacji każdego zadania (nowa funkcja, refaktoryzacja, poprawka błędu) w projekcie **AncyMon**.
+This skill defines the strict, repeatable workflow for executing any task (new feature, refactoring, bug fix) within the **AncyMon** project.
 
 ---
 
-## 5-Krokowy Proces Realizacji Zadania
+## Language Standard Within the Workflow
+1. **User Communication & Action Plan (`plan.md`)**: Always written in **Polish**.
+2. **Codebase, Code Comments, Commit Messages & Subagent Instructions**: Always written strictly in **English**.
+
+---
+
+## The 5-Step Execution Cycle
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Użytkownik
-    participant Lead as Główny Agent (Orchestrator)
-    participant Sub as Pod-Agenci (Specjaliści)
-    participant Git as Git Repo
+    actor User as User (Użytkownik)
+    participant Lead as Primary Agent (Orchestrator)
+    participant Sub as Specialized Subagents
+    participant Git as Git Repository
 
-    User->>Lead: Zapytanie (nowa funkcja / zmiana / błąd)
-    Lead->>Lead: Analiza kodu i specyfikacji
-    Lead->>User: Utworzenie Artifactu planu (RequestFeedback: true)
-    Note over User,Lead: W interfejsie pojawia się przycisk "Proceed" oraz pole uwag
-    User->>Lead: Kliknięcie "Proceed" (lub przesłanie uwag do planu)
-    Lead->>Sub: Rozdzielenie zadań (invoke_subagent)
-    Sub->>Sub: Implementacja i weryfikacja w izolacji
-    Sub->>Lead: Zgłoszenie zakończenia prac
-    Lead->>User: Krótkie podsumowanie (co i w jaki sposób zrobiono)
-    Lead->>User: ask_question: Czy zatwierdzić i wysłać na Git?
-    alt Użytkownik wybiera "Tak"
-        User->>Lead: Odpowiedź "Tak" (lub wskazanie brancha)
-        Lead->>Git: git add + rozbudowany commit + git push
-        Lead->>User: Potwierdzenie pomyślnego pusha
-    else Użytkownik wybiera "Nie"
-        User->>Lead: Odpowiedź "Nie"
-        Lead->>User: Zmiany pozostają lokalne w workspace
+    User->>Lead: User prompt in Polish (new feature / change / bug fix)
+    Lead->>Lead: Codebase & specification analysis
+    Lead->>User: Create Action Plan artifact in Polish (RequestFeedback: true)
+    Note over User,Lead: Chat UI displays the interactive "Proceed" button & feedback input
+    User->>Lead: Click "Proceed" (or submit notes/feedback)
+    Lead->>Sub: Decompose & dispatch subtasks in English (invoke_subagent)
+    Sub->>Sub: Implement code, comments, & tests strictly in English
+    Sub->>Lead: Report completion back to Primary Agent
+    Lead->>User: Concise Polish summary of changes & technical approach
+    Lead->>User: ask_question: Confirm whether to commit & push to Git
+    alt User chooses "Tak" (Yes)
+        User->>Lead: Selection: "Tak" (or specify custom branch)
+        Lead->>Git: git add + detailed Conventional Commit in English + git push
+        Lead->>User: Confirmation of successful push
+    else User chooses "Nie" (No)
+        User->>Lead: Selection: "Nie"
+        Lead->>User: Changes remain unstaged in local workspace
     end
 ```
 
 ---
 
-## KROK 1: Analiza Zapytania
-1. Zapoznaj się z treścią zapytania użytkownika.
-2. Odnieś się do pliku `specification.md` oraz istniejącej struktury projektu (`agent/`, `server/`, `mobile/`, `proto/`, `graphql/`, `deploy/`).
-3. Zidentyfikuj, które warstwy systemu wymagają modyfikacji i którzy pod-agenci powinni zostać zaangażowani.
+## STEP 1: Request Analysis
+1. Analyze the user's prompt.
+2. Cross-reference `specification.md` and current repository structure (`agent/`, `server/`, `mobile/`, `proto/`, `graphql/`, `deploy/`).
+3. Identify affected subsystems and which specialized subagents must be invoked.
 
 ---
 
-## KROK 2: Przygotowanie Planu (Artifact + "Proceed" Button)
+## STEP 2: Action Plan Preparation (Artifact + "Proceed" Button)
 
-1. Przygotuj zwięzły plan działań w postaci pliku Artifact.
-2. Zapisz plik planu w katalogu artefaktów: `<appDataDir>/brain/<conversation-id>/plan.md`.
-3. **Kluczowy wymóg**: Podczas wywołania `write_file` **zawsze** przekaż `ArtifactMetadata`:
+1. Formulate a concise, bulleted action plan.
+2. **Language requirement**: The plan text must be written in **Polish**.
+3. Save the plan file in the artifact directory: `<appDataDir>/brain/<conversation-id>/plan.md`.
+4. Provide `ArtifactMetadata` with `RequestFeedback: true`:
    ```json
    {
      "Path": "<appDataDir>/brain/<conversation-id>/plan.md",
-     "Content": "# Plan Implementacji: ...\n\n## Zakres prac:\n1. ...\n2. ...",
+     "Content": "# Plan Działań: ...\n\n## Zakres prac:\n1. ...",
      "ArtifactMetadata": {
-       "Summary": "Krótki, 2-3 linijkowy opis proponowanych działań",
+       "Summary": "Krótki opis proponowanych działań",
        "UserFacing": true,
        "RequestFeedback": true
      }
    }
    ```
-4. **Zatrzymaj dalsze wykonywanie narzędzi.** Poczekaj na interakcję użytkownika.
-   - Użytkownik zobaczy w interfejsie przycisk **"Proceed"** oraz pole do wpisania opcjonalnych uwag.
-   - Jeśli użytkownik wpisze uwagi zamiast kliknąć "Proceed", zmodyfikuj plan za pomocą `edit_file` lub `write_file` (ponownie z `RequestFeedback: true`) i poczekaj na zatwierdzenie.
+5. **Halt execution.** Do not make code modifications.
+   - The UI displays the interactive **"Proceed"** button and feedback text box.
+   - If the user provides feedback, adjust the plan and re-submit it with `RequestFeedback: true`.
 
 ---
 
-## KROK 3: Rozdzielenie Zadań do Pod-Agentów (`invoke_subagent`)
+## STEP 3: Task Delegation to Subagents (`invoke_subagent`)
 
-Po otrzymaniu potwierdzenia ("Proceed"):
-1. Sprawdź, którzy specjaliści są potrzebni:
-   - `ancymon-agent-engineer` (Go host agent, OS metryki, bufor WAL, gRPC keepalive)
-   - `ancymon-server-engineer` (Go serwer, VictoriaMetrics, GraphQL serwer, Caddy)
-   - `ancymon-flutter-engineer` (Aplikacja Flutter, Riverpod, Ferry, SecurityContext, UI)
-   - `ancymon-protocol-engineer` (Kontrakty proto/ i schema.graphql, format parowania)
-   - `ancymon-qa-engineer` (Testy odporności WAL, keepalive, integracja)
-2. Wywołaj narzędzie `invoke_subagent`:
+Once the user clicks "Proceed":
+1. Dispatch tasks to the relevant subagents:
+   - `ancymon-agent-engineer` (Go host agent, 1 Hz OS metrics, WAL buffer, gRPC keepalive)
+   - `ancymon-server-engineer` (Go backend, VictoriaMetrics, GraphQL server, Caddy TLS)
+   - `ancymon-flutter-engineer` (Flutter app, Riverpod, Ferry codegen, SecurityContext, fl_chart)
+   - `ancymon-protocol-engineer` (Protobuf definitions, GraphQL schema, pairing JSON)
+   - `ancymon-qa-engineer` (WAL resilience tests, gRPC keepalive tests, Flutter integration)
+2. Use `invoke_subagent`:
    ```json
    {
      "TypeName": "ancymon-agent-engineer",
-     "Role": "Host Agent Developer",
-     "Prompt": "Instrukcja precyzująca zadanie, pliki docelowe oraz oczekiwany rezultat."
+     "Role": "Host Agent Engineer",
+     "Prompt": "Detailed technical instruction written in English specifying target files and expected behaviors."
    }
    ```
-3. Odbierz komunikaty zwrotne od pod-agentów, zweryfikuj czy zadania zostały wykonane poprawnie i czy kompilacja/testy przechodzą pomyślnie.
+3. Ensure all generated code, comments, and identifiers are strictly in **English**.
+4. Collect results and verify that code builds and passes tests.
 
 ---
 
-## KROK 4: Krótkie Podsumowanie dla Użytkownika
+## STEP 4: Implementation Summary
 
-Przedstaw użytkownikowi zwięzły raport bezpośrednio w wiadomości:
-* **Co udało się opracować:** Lista zrealizowanych funkcjonalności lub naprawionych błędów.
-* **W jaki sposób:** Zastosowane mechanizmy, algorytmy, użyte biblioteki i decyzje architektoniczne.
-* **Wyniki weryfikacji:** Krótka informacja o testach/walidacji.
+Provide the user with a concise summary message in **Polish**:
+* **Co udało się opracować:** List of completed features, refactorings, or bug fixes.
+* **W jaki sposób:** Architecture, patterns, mechanisms, and libraries used.
+* **Wyniki weryfikacji:** Build status and test results.
 
 ---
 
-## KROK 5: Interaktywne Zapytanie o Git (`ask_question`) i Push
+## STEP 5: Interactive Git Decision (`ask_question`) & Push
 
-Zaraz po podsumowaniu wywołaj narzędzie `ask_question`, aby użytkownik mógł w interaktywnym oknie dialogowym wybrać dalsze działanie:
+Immediately follow the summary with an `ask_question` call:
 
 ```json
 {
@@ -123,33 +131,30 @@ Zaraz po podsumowaniu wywołaj narzędzie `ask_question`, aby użytkownik mógł
 }
 ```
 
-### Obsługa Wyboru Użytkownika:
+### Handling the User's Choice:
 
-1. **Jeśli użytkownik wybrał opcję 'Tak'**:
-   - Sprawdź obecną gałąź: `git branch --show-current`.
-   - Jeśli użytkownik podał w polu write-in inną gałąź (np. `feature/xyz`), przełącz lub utwórz tę gałąź: `git checkout -b <branch>` lub `git checkout <branch>`.
-   - Zindeksuj pliki: `git add .` (lub wybrane zmodyfikowane pliki).
-   - Stwórz **rozbudowany komentarz commita** w standardzie Conventional Commits:
+1. **If the user chooses "Tak" (Yes)**:
+   - Check current branch: `git branch --show-current`.
+   - If user specified a different branch in write-in, switch or create it: `git checkout -b <branch>` or `git checkout <branch>`.
+   - Stage changes: `git add .` (with `BypassSandbox: true` if .git access is restricted).
+   - Author a comprehensive Conventional Commits message written in **English**:
      ```bash
      git commit -m "$(cat << 'EOF'
-     feat(komponent): zwięzły jednolinijkowy nagłówek
+     feat(scope): concise one-line subject in English
 
-     Szczegółowy opis wprowadzonych zmian:
-     - Implementacja X w pliku Y z zachowaniem wymogów specyfikacji.
-     - Obsługa scenariusza Z w module W.
-     - Zaktualizowanie testów jednostkowych i integracyjnych.
+     Detailed description of changes:
+     - Implemented X in module Y following specification guidelines.
+     - Added error handling for edge case Z.
+     - Updated automated unit and integration tests.
 
-     Uzasadnienie techniczne / Architektura:
-     - Zapewnienie zerowych zależności runtime na hoście.
-     - Zgodność z kontraktem gRPC/GraphQL.
+     Technical Rationale:
+     - Preserves zero external runtime dependencies on the host agent.
+     - Enforces compile-time type safety via Ferry GraphQL client.
      EOF
      )"
      ```
-   - Wyślij zmiany do zdalnego repozytorium:
-     ```bash
-     git push origin <gałąź>
-     ```
-   - Poinformuj użytkownika o udanym commicie i pushu, podając skrót hasha i nazwę gałęzi.
+   - Push to remote: `git push origin <branch>`.
+   - Inform the user in Polish of the successful commit and push with commit hash and branch name.
 
-2. **Jeśli użytkownik wybrał opcję 'Nie'**:
-   - Poinformuj użytkownika, że zmiany pozostały w stanie roboczym w katalogu projektu i może je przejrzeć w dowolnej chwili.
+2. **If the user chooses "Nie" (No)**:
+   - Inform the user in Polish that changes remain unstaged in the local workspace for review.

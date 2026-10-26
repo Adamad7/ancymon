@@ -1,13 +1,13 @@
 # ancymon-server
 
-Moduł serwera centralnego w języku Go koordynujący odbiór telemetrii, zapis w bazie VictoriaMetrics oraz dostarczanie API GraphQL dla aplikacji mobilnej.
+Central backend server written in Go coordinating gRPC telemetry ingestion, VictoriaMetrics time-series storage, and GraphQL API delivery for the mobile client.
 
-## Kluczowe Cechy
-- **Ingestia gRPC**: HTTP/2 streaming na porcie 50051 (`h2c` za Caddy) z egzekwowaniem keepalive (min. 15s) i walidacją PSK.
-- **Pamięć podręczna i Watchdog**: In-memory cache stacji roboczych z automatycznym oznaczaniem `offline` po >60s braku telemetrii.
-- **Integracja VictoriaMetrics**: Zapis metryk Influx Line Protocol (`/write`) oraz zapytania historyczne MetricsQL (`/api/v1/query_range`) z dynamicznym parametrem `step`.
-- **Silnik GraphQL**: Subskrypcje WebSockets (`FleetSummary`, `MachineMetrics`), zapytania historyczne HTTPS, mutacja `deleteMachine`.
-- **Zero-Typing Pairing**: Generator terminalowego kodu QR z certyfikatem ECDSA CA i tokenem PSK.
+## Key Features
+- **gRPC Ingestion**: HTTP/2 streaming on port 50051 (`h2c` behind Caddy) with keepalive enforcement (min 15s) and PSK authorization.
+- **In-Memory Cache & Watchdog**: Workstation registry with an automatic Heartbeat Watchdog marking hosts as `offline` after >60s of silence.
+- **VictoriaMetrics Integration**: High-throughput ingestion via Influx Line Protocol on `/write` and on-the-fly downsampled historical queries via MetricsQL (`/api/v1/query_range`).
+- **GraphQL Engine**: WebSocket subscriptions (`fleetSummary`, `machineMetrics`), HTTPS historical queries, and the `deleteMachine` mutation.
+- **Zero-Typing Pairing**: Terminal QR code generator utility encoding minified JSON with stripped ECDSA P-256 CA certificate bytes and PSK token.
 
-## Odpowiedzialny Agent AI
+## Responsible Subagent
 - **`ancymon-server-engineer`**

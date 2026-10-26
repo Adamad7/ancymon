@@ -8,13 +8,13 @@ description: >-
 
 # Ferry GraphQL Client & Custom TLS SecurityContext Runbook
 
-Ten skill opisuje procedurę konfiguracji silnie typowanego klienta GraphQL **Ferry** w projekcie `mobile/` oraz wstrzykiwania niestandardowego certyfikatu CA ECDSA z kodu QR.
+This skill describes how to set up the strongly typed **Ferry** GraphQL client in `mobile/` and dynamically inject the custom ECDSA CA certificate scanned from the onboarding QR code.
 
 ---
 
-## 1. Zależności `pubspec.yaml`
+## 1. `pubspec.yaml` Dependencies
 
-W aplikacji Flutter wymagane są następujące pakiety:
+The Flutter client requires the following packages:
 
 ```yaml
 dependencies:
@@ -39,9 +39,9 @@ dev_dependencies:
 
 ---
 
-## 2. Dynamiczny `SecurityContext` z Certyfikatem ECDSA
+## 2. Dynamic `SecurityContext` with ECDSA CA
 
-Ponieważ Caddy używa wewnętrznego CA z kluczami ECDSA (P-256), a aplikacja mobilna pobiera certyfikat ze skanu kodu QR w postaci surowego Base64:
+Since Caddy runs an internal CA with elliptic curve keys (ECDSA P-256), the mobile app receives the certificate as raw Base64 from the pairing QR scan:
 
 ```dart
 import 'dart:convert';
@@ -49,14 +49,14 @@ import 'dart:io';
 
 SecurityContext createCustomSecurityContext(String caBase64) {
   final securityContext = SecurityContext(withTrustedRoots: false);
-  // Dekodowanie zminifikowanego Base64 na surowe bajty DER certyfikatu
+  // Decode minified Base64 into raw DER certificate bytes
   final certBytes = base64Decode(caBase64);
   securityContext.setTrustedCertificatesBytes(certBytes);
   return securityContext;
 }
 ```
 
-### Konfiguracja Linków Ferry:
+### Ferry Link Setup:
 ```dart
 import 'dart:io';
 import 'package:ferry/ferry.dart';
@@ -72,7 +72,7 @@ Client buildFerryClient({
 }) {
   final securityContext = createCustomSecurityContext(caBase64);
   
-  // Customowy HttpClient z wstrzykniętym CA dla zapytań HTTPS
+  // Custom HttpClient with injected CA for HTTPS queries
   final httpClient = HttpClient(context: securityContext);
   final httpLink = HttpLink(
     'https://$host:$port/graphql',
@@ -80,7 +80,7 @@ Client buildFerryClient({
     defaultHeaders: {'Authorization': 'Bearer $token'},
   );
 
-  // Customowy WebSocket z wstrzykniętym CA dla subskrypcji WSS
+  // Custom WebSocket with injected CA for WSS subscriptions
   final wsUrl = Uri.parse('wss://$host:$port/graphql');
   final wsLink = WebSocketLink(
     null,
@@ -99,20 +99,20 @@ Client buildFerryClient({
 
 ---
 
-## 3. Generowanie Modeli (`build_runner`)
+## 3. Model Code Generation (`build_runner`)
 
-1. Umieść pliki operacji GraphQL (`fleet_summary.graphql`, `machine_metrics.graphql`, `history.graphql`, `delete_machine.graphql`) w odpowiednich katalogach funkcjonalnych.
-2. Zbuduj silnie typowane modele:
+1. Define GraphQL operations (`fleet_summary.graphql`, `machine_metrics.graphql`, `history.graphql`, `delete_machine.graphql`).
+2. Run code generation:
    ```bash
    dart run build_runner build --delete-conflicting-outputs
    ```
-3. Generowane pliki `*.req.gql.dart`, `*.data.gql.dart`, `*.var.gql.dart` stanowią wyłączną podstawę do komunikacji z serwerem.
+3. Use the generated `*.req.gql.dart`, `*.data.gql.dart`, and `*.var.gql.dart` files exclusively for network operations.
 
 ---
 
-## 4. Powiązanie z Riverpod
+## 4. Binding with Riverpod
 
-Zwiąż strumienie Ferry z `StreamProvider` w Riverpod:
+Bind Ferry streams directly to Riverpod's `StreamProvider`:
 
 ```dart
 final fleetSummaryProvider = StreamProvider.autoDispose<List<GviewModelSummaryData>>((ref) {
@@ -126,4 +126,4 @@ final fleetSummaryProvider = StreamProvider.autoDispose<List<GviewModelSummaryDa
   });
 });
 ```
-To podejście gwarantuje brak ręcznego parsowania JSON-ów, bezpieczeństwo typów w czasie kompilacji oraz reaktywne odświeżanie interfejsu.
+This guarantees compile-time type safety, zero manual JSON parsing, and automatic reactive UI rebuilds.

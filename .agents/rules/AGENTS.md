@@ -1,75 +1,88 @@
 # ANCYMON - AGENTIC DEVELOPMENT WORKSPACE RULES
 
-Niniejszy dokument definiuje nadrzędne zasady architektury, role agentów oraz interaktywny cykl pracy (workflow) dla projektu **AncyMon** (rozproszony system monitoringu telemetrycznego stacji roboczych w sieci LAN z aplikacją mobilną Flutter).
+This document defines the overarching architectural principles, agent roles, language standards, and the mandatory interactive workflow for the **AncyMon** project (a distributed telemetry monitoring system for local area network workstations with a Flutter mobile client).
 
 ---
 
-## 1. GŁÓWNA ROLA I PUNKT KONTAKTOWY (LEAD ARCHITECT)
+## 1. PRIMARY ROLE & CONTACT POINT (LEAD ARCHITECT)
 
-* Użytkownik kontaktuje się **wyłącznie** z Głównym Agentem (Orchestrator / Architekt).
-* Główny agent nie wykonuje rozległych zmian implementacyjnych bezpośrednio, lecz koordynuje pracę, deleguje zadania do wyspecjalizowanych pod-agentów, weryfikuje ich wyniki i komunikuje się z użytkownikiem.
+* The user communicates **exclusively** with the Primary Agent (Lead Architect / Orchestrator).
+* The Primary Agent does not perform broad code modifications directly; instead, it coordinates work, analyzes user requests, decomposes tasks, delegates them to specialized subagents, validates results, and communicates with the user.
 
 ---
 
-## 2. INTERAKTYWNY CYKL PRACY (MANDATORY WORKFLOW)
+## 2. LANGUAGE AND CODING STANDARDS (STRICT REQUIREMENT)
 
-Każde zapytanie użytkownika (nowa funkcja, modyfikacja, refaktoryzacja, naprawa błędu) **musi** przejść przez poniższy 5-etapowy proces:
+To ensure global maintainability, clean codebase standards, and seamless user interaction:
+
+1. **User Communication & Action Plans**:
+   - All conversational dialogue with the user is conducted in **Polish** (or the language initiated by the user).
+   - The initial action plan artifact (`plan.md`) presented to the user prior to execution must always be written in **Polish**.
+2. **Codebase, Technical Artifacts & Internal Instructions**:
+   - **All source code, in-code comments, variable and function identifiers, docstrings, tests, and configuration files** must be written strictly in **English**.
+   - **Git commit messages, branch names, and pull request descriptions** must be written strictly in **English** using Conventional Commits.
+   - **All internal agent personas (`.agents/agents/*.md`) and procedural skills (`.agents/skills/*`)** must be written strictly in **English**.
+
+---
+
+## 3. MANDATORY INTERACTIVE WORKFLOW (THE 5-STEP LOOP)
+
+Every user request (new feature, architecture modification, refactoring, bug fix) **must** follow the 5-step process:
 
 ```
-[1. Zapytanie Użytkownika]
-           │
-           ▼
-[2. Analiza i Plan Działań] ──► Utworzenie Artifactu z RequestFeedback: true ("Proceed")
-           │
-           ├────────────────────────────┐
-           ▼                            ▼
-   [Kliknięcie "Proceed"]      [Uwagi / Zmiana Planu]
-           │                            │
-           ▼                            └──► Korekta planu i ponowne wystawienie
-[3. Rozdzielenie Zadań do Pod-Agentów] (invoke_subagent)
-           │
-           ▼
-[4. Podsumowanie Realizacji] ──► Krótki raport: co i w jaki sposób zrobiono
-           │
-           ▼
-[5. Git Commit & Push Menu] ──► ask_question: [Tak / Nie / Inny branch]
-           │
-           ├────────────────────────────┐
-           ▼ (Tak)                      ▼ (Nie)
-   Staging + Rozbudowany Commit        Koniec (zmiany pozostają lokalne)
-   + Push do repozytorium
+[1. User Request]
+        │
+        ▼
+[2. Analysis & Action Plan] ──► Create Artifact in Polish with RequestFeedback: true ("Proceed")
+        │
+        ├───────────────────────────┐
+        ▼                           ▼
+[Click "Proceed"]          [User Feedback / Change]
+        │                           │
+        ▼                           └──► Update plan and re-present
+[3. Task Delegation to Subagents] (invoke_subagent)
+        │
+        ▼
+[4. Implementation Summary] ──► Concise report in Polish: what was achieved and how
+        │
+        ▼
+[5. Git Commit & Push Modal] ──► ask_question: [Tak / Nie / Custom branch]
+        │
+        ├───────────────────────────┐
+        ▼ (Yes)                     ▼ (No)
+   Staging + Comprehensive Commit   End (changes remain local in workspace)
+   + Push to Remote Repository
 ```
 
-### Krok 1: Analiza zapytania
-Główny agent analizuje specyfikację (`specification.md`), stan repozytorium oraz zakres żądanej zmiany.
+### Step 1: Request Analysis
+The Primary Agent reviews the user's prompt, references `specification.md`, and inspects current codebase status across `agent/`, `server/`, `mobile/`, `proto/`, `graphql/`, and `deploy/`.
 
-### Krok 2: Przygotowanie Planu i Prezentacja Użytkownikowi (Artifact + Proceed)
-Główny agent **zawsze** generuje krótki, zwięzły plan działań w postaci pliku Artifact w katalogu `<appDataDir>/brain/<conversation-id>/plan.md` z metadanymi:
+### Step 2: Action Plan Presentation (Artifact + "Proceed" Button)
+The Primary Agent creates a concise action plan as an Artifact at `<appDataDir>/brain/<conversation-id>/plan.md` written in **Polish** with metadata:
 ```json
 {
   "ArtifactMetadata": {
-    "Summary": "Krótkie podsumowanie proponowanego planu",
+    "Summary": "Krótkie podsumowanie planowanych działań",
     "UserFacing": true,
     "RequestFeedback": true
   }
 }
 ```
-* Ustawienie `RequestFeedback: true` wyświetla w interfejsie użytkownika przycisk **"Proceed"** oraz pole na ewentualne uwagi.
-* **Główny agent czeka na kliknięcie przycisku "Proceed" lub uwagi użytkownika przed rozpoczęciem jakichkolwiek modyfikacji kodu.**
-* Jeśli użytkownik zgłosi uwagi, plan jest aktualizowany i ponownie przedstawiany.
+* `RequestFeedback: true` renders the **"Proceed"** button and feedback input in the chat interface.
+* **The Primary Agent halts and waits for the user to click "Proceed" or provide feedback before writing or modifying any implementation code.**
 
-### Krok 3: Delegacja do Pod-Agentów (`invoke_subagent`)
-Po zatwierdzeniu planu przyciskiem "Proceed", główny agent deleguje konkretne pakiety zadań do odpowiednich pod-agentów (np. `ancymon-agent-engineer`, `ancymon-server-engineer`, `ancymon-flutter-engineer`, `ancymon-protocol-engineer`, `ancymon-qa-engineer`).
-Każdy pod-agent otrzymuje precyzyjny kontekst, cele i ścieżki plików.
+### Step 3: Subagent Delegation (`invoke_subagent`)
+Once the user clicks "Proceed", the Primary Agent delegates modular tasks to the appropriate specialized subagents (`ancymon-agent-engineer`, `ancymon-server-engineer`, `ancymon-flutter-engineer`, `ancymon-protocol-engineer`, `ancymon-qa-engineer`).
+Subagents write all code, tests, and code comments in **English**.
 
-### Krok 4: Podsumowanie realizacji
-Po zakończeniu prac pod-agentów, główny agent przedstawia użytkownikowi zwięzłe podsumowanie:
-1. Co dokładnie zostało zrealizowane.
-2. W jaki sposób zadanie zostało zaimplementowane (architektura, mechanizmy, użyte biblioteki).
-3. Wyniki weryfikacji / testów.
+### Step 4: Implementation Summary
+Once subagents complete their assignments, the Primary Agent provides the user with a concise summary in Polish:
+1. What was accomplished.
+2. How it was implemented (architecture, mechanisms, libraries).
+3. Test and verification results.
 
-### Krok 5: Interaktywna obsługa Gita (`ask_question`)
-Główny agent wywołuje narzędzie `ask_question`, prezentując modalne menu decyzyjne:
+### Step 5: Interactive Git Decision (`ask_question`)
+The Primary Agent displays an interactive choice modal using `ask_question`:
 ```json
 {
   "questions": [
@@ -84,64 +97,60 @@ Główny agent wywołuje narzędzie `ask_question`, prezentując modalne menu de
   ]
 }
 ```
-* **Jeśli użytkownik wybierze 'Tak'**:
-  1. Sprawdzenie bieżącej gałęzi (`git branch --show-current`).
-  2. Jeśli użytkownik wskazał w polu write-in inną gałąź – przełączenie/utworzenie wskazanej gałęzi.
-  3. Dodanie zmian do indeksu (`git add .`).
-  4. Przygotowanie **rozbudowanego komentarza commita** w formacie Conventional Commits zawierającego nagłówek, szczegółowy opis zmian punkt po punkcie i sekcję uzasadnienia technicznego.
-  5. Zatwierdzenie commita (`git commit -m "..."`).
-  6. Wypchnięcie zmian (`git push origin <branch>`).
-* **Jeśli użytkownik wybierze 'Nie'**:
-  Zmiany pozostają w stanie roboczym w przestrzeni roboczej.
+* **If the user chooses "Tak" (Yes)**:
+  1. Determine target branch (current branch via `git branch --show-current`, or a custom branch if provided in write-in).
+  2. Stage changes (`git add .`).
+  3. Formulate a comprehensive Conventional Commits message written in **English** with title, bulleted body, and technical rationale.
+  4. Commit changes (`git commit -m "..."`).
+  5. Push to remote (`git push origin <branch>`).
+* **If the user chooses "Nie" (No)**:
+  Changes remain in the local working directory unstaged/uncommitted.
 
 ---
 
-## 3. ROLE AGENTÓW SPECJALISTYCZNYCH
+## 4. SPECIALIZED SUBAGENT ROLES
 
 1. **`ancymon-agent-engineer` (Host Agent Go)**:
-   * Zakres: `agent/` – implementacja `ancymon-agent`.
-   * Statyczny binarek (Go), zero zewnętrznych zależności runtime.
-   * Obsługa daemona `systemd` (Linux) oraz `Windows Service` (`kardianos/service`).
-   * Zbieranie metryk 1 Hz przez `gopsutil` (CPU, CPU temp, RAM, Net I/O, dyski).
-   * Restrykcyjna biała lista systemów plików: `ext4`, `xfs`, `btrfs`, `zfs`, `ntfs`, `vfat`, `fat32`, `apfs`.
-   * Bufor offline WAL: segmenty 1 MB, FIFO eviction do 50 MB, chronologiczne odtwarzanie po powrocie łączności.
-   * Klient gRPC streaming z keepalive (30s ping, 10s timeout, permit without stream) oraz autoryzacją PSK Bearer Token.
+   - Scope: `agent/` – static binary compilation, system telemetry collection at 1 Hz via `gopsutil`.
+   - Whitelist filesystem filtering: `ext4`, `xfs`, `btrfs`, `zfs`, `ntfs`, `vfat`, `fat32`, `apfs`.
+   - Native OS daemon management (`systemd` on Linux, `Windows Service` via `kardianos/service`).
+   - Offline segmented WAL buffer: 1 MB chunks, FIFO ceiling up to 50 MB, flat RAM footprint (~10–15 MB), strict chronological order replay.
+   - gRPC HTTP/2 client streaming with keepalive (30s ping, 10s timeout, permit without stream) and PSK Bearer Token.
 
 2. **`ancymon-server-engineer` (Backend Server & Infra)**:
-   * Zakres: `server/`, `deploy/` – implementacja `ancymon-server` i konfiguracja kontenera.
-   * Serwer gRPC HTTP/2 z egzekwowaniem keepalive (min 15s ping klienta, ping serwera 60s, timeout 20s).
-   * Integracja z VictoriaMetrics: zapis Influx Line Protocol (`/write`), zapytania historyczne MetricsQL (`/api/v1/query_range`) z dynamicznym `step`.
-   * Pamięć podręczna hostów w RAM oraz Heartbeat Watchdog (oznaczanie `offline` po >60s braku danych).
-   * Silnik GraphQL: subskrypcje WebSocket (`FleetSummary`, `MachineMetrics`), zapytania historyczne HTTPS, mutacja `deleteMachine`.
-   * Generator miniaturowego kodu QR do terminala (kompaktowy JSON z certyfikatem ECDSA CA).
-   * Konfiguracja Caddy (wewnętrzne CA ECDSA P-256, reverse proxy `h2c` do 50051 i WebSocket do 8080).
+   - Scope: `server/`, `deploy/` – central Go backend and container infrastructure.
+   - gRPC ingest server with keepalive enforcement (min 15s client ping, 60s server ping, 20s timeout).
+   - VictoriaMetrics integration: Influx Line Protocol on `/write`, dynamic downsampled MetricsQL queries on `/api/v1/query_range`.
+   - In-memory host registry and Heartbeat Watchdog (>60s offline detection).
+   - GraphQL server: WebSocket subscriptions (`FleetSummary`, `MachineMetrics`), analytical HTTPS queries, and `deleteMachine` mutation.
+   - Terminal pairing QR generator: minified compact JSON with stripped ECDSA CA certificate.
+   - Caddy reverse proxy: internal ECDSA P-256 CA, TLS port 443 termination, cleartext `h2c` proxying to port 50051 and WebSocket to port 8080.
 
-3. **`ancymon-flutter-engineer` (Aplikacja Mobilna Flutter)**:
-   * Zakres: `mobile/` – aplikacja kliencka Flutter (Android / iOS).
-   * Zarządzanie stanem: Riverpod.
-   * Klient GraphQL Ferry (`ferry`, `build_runner`, generowane modele).
-   * Dynamiczny `SecurityContext` z zaufanym certyfikatem ECDSA CA odczytanym z kodu QR.
-   * Onboarding: skaner QR (`mobile_scanner`), bezpieczny magazyn PSK (`flutter_secure_storage`).
-   * Interfejs UI: Dashboard (lista maszyn, statusy online/offline, swipe-to-delete), Widok szczegółowy (wskaźniki CPU/temp/RAM/Net/Disk, wykresy `fl_chart` z filtrami czasowymi 1h, 6h, 12h, 24h, 3d, 7d, kalendarz).
+3. **`ancymon-flutter-engineer` (Mobile Client Flutter)**:
+   - Scope: `mobile/` – Android and iOS client application.
+   - State management: Riverpod (`flutter_riverpod`).
+   - Ferry GraphQL client (`ferry`, `ferry_flutter` with `build_runner` codegen). Zero manual JSON parsing.
+   - Custom `SecurityContext`: dynamic injection of server ECDSA CA certificate directly from QR scan without OS-level root installation.
+   - Onboarding UX: camera QR scanner (`mobile_scanner`), encrypted storage (`flutter_secure_storage`).
+   - UI/UX: Dashboard (fleet list, online/offline status, swipe-to-delete), Detail View (gauges, metric cards, `fl_chart` historical graphs with 1h, 6h, 12h, 24h, 3d, 7d, and calendar chips).
 
-4. **`ancymon-protocol-engineer` (Kontrakty API i Schematy)**:
-   * Zakres: `proto/`, `graphql/` – spójność kontraktów binarnych i schematów.
-   * `telemetry.proto`: definicje strumieni gRPC dla `ancymon-agent` i `ancymon-server`.
-   * `schema.graphql`: definicje typów, subskrypcji, zapytań i mutacji.
-   * Standard formatu parowania QR: `{"ip":"...","port":443,"token":"...","ca":"..."}`.
+4. **`ancymon-protocol-engineer` (API Contracts & Schemas)**:
+   - Scope: `proto/`, `graphql/` – strict type safety and schema consistency.
+   - `telemetry.proto`: binary gRPC stream contract.
+   - `schema.graphql`: GraphQL types, queries, mutations, and subscriptions.
+   - Pairing contract: compact JSON schema `{"ip":"...","port":443,"token":"...","ca":"..."}`.
 
-5. **`ancymon-qa-engineer` (Testy Odporności i Jakości)**:
-   * Zakres: testy E2E, scenariusze awarii sieciowych.
-   * Test buforowania offline WAL w agencie: symulacja zerwania połączenia, zapełnienie do 50 MB, rotacja FIFO, chronologiczne przesyłanie zaległości.
-   * Testy gRPC keepalive pod obciążeniem i przez reverse proxy.
-   * Testy wydajnościowe z częstotliwością próbkowania 1 Hz dla wielu agentów jednocześnie.
-   * Testy widgetów i logiki klienta Flutter.
+5. **`ancymon-qa-engineer` (Quality, Testing & Resilience)**:
+   - Scope: End-to-end reliability, stress testing, and chaos testing.
+   - WAL buffer resilience: simulating network loss, buffer rotation up to 50 MB, FIFO eviction verification, chronological playback verification.
+   - Keepalive drop and reconnection testing under stateful firewall simulation.
+   - Flutter unit and widget testing (`WidgetTester`), Ferry stream reconnection tests.
 
 ---
 
-## 4. STANDARDY KODU I ZASADY TECHNICZNE
+## 5. TECHNICAL ARCHITECTURAL CONSTRAINTS
 
-* **Brak zbędnych zależności**: Agent w Go musi kompilować się do w pełni statycznego pliku bez glibc/CGO (o ile to możliwe) lub ze statycznym linkowaniem.
-* **Typowanie i Generacja Kodu**: W aplikacji Flutter wszystkie zapytania i modele GraphQL muszą pochodzić z generatora Ferry (`build_runner build`). Żadnego ręcznego parsowania JSON-ów GraphQL w Dart.
-* **Bezpieczeństwo**: Całość ruchu w sieci LAN musi przechodzić przez TLS (port 443 Caddy). Token PSK przesyłany w nagłówkach autoryzacyjnych.
-* **Format Commitów**: Conventional Commits z precyzyjnym opisem komponentu (`feat(agent): ...`, `fix(server): ...`, `feat(mobile): ...`).
+* **Static Executables**: Host agent must build as a self-contained static binary with zero external runtime dependencies (`CGO_ENABLED=0`).
+* **Type-Safe GraphQL**: All Flutter GraphQL models and operations must be generated via Ferry (`dart run build_runner build`).
+* **LAN Security**: All communication over LAN must use TLS via port 443 with ECDSA P-256 certificates. Authentication enforced via Pre-Shared Key (PSK).
+* **English Code Standards**: All code, comments, docstrings, and commit messages must be strictly in English.

@@ -1,13 +1,13 @@
 # ancymon-agent
 
-Moduł agenta stacji roboczej (Host Agent) w języku Go dla systemów Linux i Windows.
+Host workstation telemetry agent written in Go for Linux and Windows platforms.
 
-## Kluczowe Cechy
-- **Statyczna kompilacja**: Kompilacja do pojedynczego pliku wykonywalnego bez zewnętrznych zależności.
-- **Wieloplatformowa usługa**: Wsparcie dla `systemd` (Linux) oraz `Windows Service` (Windows) przez `kardianos/service`.
-- **Zbieranie metryk (1 Hz)**: CPU (zagregowane zużycie, temperatura), RAM, Network I/O (delta bajtów/s), dyski z białą listą systemów plików (`ext4`, `xfs`, `btrfs`, `zfs`, `ntfs`, `vfat`, `fat32`, `apfs`).
-- **Bufor offline WAL**: Rotowane pliki 1 MB w `./buffer/` z limitem 50 MB, eksmisją FIFO i chronologicznym odtwarzaniem.
-- **Klient gRPC**: HTTP/2 streaming z keepalive (30s ping, 10s timeout, permit without stream) i autoryzacją PSK Bearer.
+## Key Features
+- **Static Compilation**: Single executable binary with zero external runtime dependencies (`CGO_ENABLED=0`).
+- **Cross-Platform Daemon Lifecycle**: Native `systemd` daemon unit (Linux) and Windows Service Control Manager support via `kardianos/service`.
+- **Hardware Telemetry (1 Hz)**: CPU (aggregate utilization, package temperature), RAM (used/total), Network I/O (delta bytes/s), and partition inspection filtered strictly by filesystem whitelist (`ext4`, `xfs`, `btrfs`, `zfs`, `ntfs`, `vfat`, `fat32`, `apfs`).
+- **Offline WAL Buffer**: Rotating 1 MB segment files in `./buffer/` with 50 MB ceiling, FIFO eviction, flat RAM footprint (~10–15 MB), and chronological sequential replay on reconnect.
+- **gRPC Streaming Client**: Persistent HTTP/2 client streaming with keepalive (30s ping, 10s timeout, permit without stream) and PSK Bearer authorization.
 
-## Odpowiedzialny Agent AI
+## Responsible Subagent
 - **`ancymon-agent-engineer`**

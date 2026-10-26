@@ -1,5 +1,5 @@
 """
-Typ wyliczeniowy dostepnych metryk do zapytań historycznych
+Supported hardware telemetry metrics for historical time-series queries
 """
 enum MetricType {
   CPU_USAGE
@@ -11,7 +11,7 @@ enum MetricType {
 }
 
 """
-Predefiniowane zakresy czasowe dla wykresow historycznych
+Predefined time-range query filters for historical charts
 """
 enum TimeRange {
   RANGE_1H
@@ -24,7 +24,7 @@ enum TimeRange {
 }
 
 """
-Status polaczenia maszyny
+Connection status of a monitored workstation
 """
 enum MachineStatus {
   ONLINE
@@ -32,7 +32,7 @@ enum MachineStatus {
 }
 
 """
-Lekki model stanu stacji roboczej dla glownego Dashboardu (FleetSummary)
+Lightweight machine status payload for the main dashboard list (FleetSummary)
 """
 type MachineSummary {
   machineId: ID!
@@ -46,7 +46,7 @@ type MachineSummary {
 }
 
 """
-Szczegolowy model metryk stacji roboczej (MachineMetrics)
+Comprehensive telemetry model emitted for an active machine detail view (MachineMetrics)
 """
 type MachineDetail {
   machineId: ID!
@@ -84,7 +84,7 @@ type DiskPartitionInfo {
 }
 
 """
-Punkt danych dla wykresow historycznych
+Aggregated data point for historical chart plotting
 """
 type HistoricalPoint {
   timestamp: Int!
@@ -93,7 +93,7 @@ type HistoricalPoint {
 
 type Query {
   """
-  Pobranie zagregowanych punktow historii metryki dla wykresow fl_chart
+  Query downsampled historical metrics from VictoriaMetrics for fl_chart visualization
   """
   machineHistory(
     machineId: ID!
@@ -105,19 +105,19 @@ type Query {
 
 type Mutation {
   """
-  Wyrejestrowanie i usuniecie nieaktywnej stacji roboczej z pamieci serwera
+  Unregister and remove an inactive workstation from the fleet cache and database
   """
   deleteMachine(machineId: ID!): Boolean!
 }
 
 type Subscription {
   """
-  Lekki strumien stanu calej floty dla glownego Dashboardu
+  Lightweight live stream of all registered machines for the main dashboard list
   """
   fleetSummary: [MachineSummary!]!
 
   """
-  Pelny strumien 1 Hz dla otwartej karty szczegolow maszyny
+  Full 1 Hz live telemetry stream for an active machine detail view
   """
   machineMetrics(machineId: ID!): MachineDetail!
 }
