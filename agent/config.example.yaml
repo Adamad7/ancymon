@@ -1,0 +1,35 @@
+# AncyMon Agent Configuration
+# Place this file in the working directory of ancymon-agent as config.yaml
+
+# Persistent unique identifier for this machine (UUID v4 format).
+# If left empty, ancymon-agent will automatically generate a persistent UUID v4 on first startup
+# and write it back to this configuration file.
+machine_id: ""
+
+# Target ancymon-server address and port.
+# Over LAN, this connects via TLS to the reverse proxy (default port 443).
+server_address: "192.168.1.100:443"
+
+# Pre-Shared Key (PSK) secret token configured on the ancymon server.
+# Sent in the gRPC HTTP/2 stream metadata header: Authorization: Bearer <auth_token>
+auth_token: "replace-with-your-server-pre-shared-token"
+
+# Optional path to the trusted root CA certificate (e.g., Caddy internal ECDSA P-256 CA).
+# If empty, the system trust store will be utilized.
+tls_ca_path: ""
+
+# Allow cleartext HTTP/2 transport without TLS (insecure mode, strictly for development/debugging).
+insecure: false
+
+# Frequency of telemetry collection ticks in milliseconds.
+# Default: 1000 ms (1 Hz).
+sampling_interval_ms: 1000
+
+# Directory path for the offline segmented Write-Ahead Log (WAL) buffer.
+# Default: "./buffer/"
+buffer_dir: "./buffer/"
+
+# Maximum cumulative size in megabytes (MB) allowed for WAL buffer segments.
+# When the threshold is reached, oldest completed segments are deleted via FIFO eviction.
+# Default: 50 MB (~50 x 1MB segment files).
+buffer_max_mb: 50

@@ -1,0 +1,25 @@
+# Compiled binaries
+bin/
+agent/bin/
+server/bin/
+*.exe
+
+# WAL Buffers
+buffer/
+agent/buffer/
+*.wal
+
+# Configuration with local machine secrets
+config.yaml
+agent/config.yaml
+
+# Test binaries and coverage outputs
+*.test
+*.out
+cover.html
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
