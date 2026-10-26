@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.99.0
+    container_name: ancymon-victoriametrics
+    ports:
+      - "8428:8428"
+    volumes:
+      - vmdata:/victoria-metrics-data
+    command:
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-retentionPeriod=90d"
+      - "-httpListenAddr=:8428"
+    restart: unless-stopped
+
+  # ancymon-server oraz caddy beda dodane w kolejnych krokach implementacji
+
+volumes:
+  vmdata:

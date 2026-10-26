@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package ancymon;
+
+option go_package = "ancymon/proto;ancymonproto";
+
+// Glowny komunikat pojedynczej ramki telemetrycznej wysylany przez agenta (1 Hz)
+message TelemetryFrame {
+  string machine_id = 1;      // UUID v4 stacji roboczej
+  string hostname = 2;        // Etykieta czytelna dla czlowieka
+  int64 timestamp_unix = 3;   // Czas pomiaru w sekundach (Unix epoch)
+  
+  CpuMetrics cpu = 4;
+  MemoryMetrics memory = 5;
+  NetworkMetrics network = 6;
+  repeated DiskPartitionMetrics disks = 7;
+  
+  // Rezerwa na przyszle rozszerzenia (np. GPU)
+  reserved 8 to 15;
+}
+
+message CpuMetrics {
+  double total_usage_percent = 1;     // Zsumowane obciazenie CPU (%)
+  optional double temperature_c = 2;  // Temperatura pakietu/rdzenia (opcjonalne)
+}
+
+message MemoryMetrics {
+  uint64 total_bytes = 1;             // Calkowity RAM w bajtach
+  uint64 used_bytes = 2;              // Uzyty RAM w bajtach
+  double usage_percent = 3;           // Obciazenie RAM (%)
+}
+
+message NetworkMetrics {
+  uint64 rx_bytes_per_sec = 1;        // Predkosc pobierania (Download B/s)
+  uint64 tx_bytes_per_sec = 2;        // Predkosc wysylania (Upload B/s)
+}
+
+message DiskPartitionMetrics {
+  string mount_point = 1;             // Punkt montowania (np. /, /home, C:)
+  string fs_type = 2;                 // Typ systemu plikow (z bialej listy, np. ext4, ntfs)
+  uint64 total_bytes = 3;             // Calkowity rozmiar wolumenu
+  uint64 free_bytes = 4;              // Wolne miejsce
+  double usage_percent = 5;           // Procent zajetosci dysku
+}
+
+// Potwierdzenie odebrania ramki lub partii ramek przez serwer
+message TelemetryAck {
+  bool success = 1;
+  int64 acknowledged_timestamp = 2;
+  string message = 3;
+}
+
+// Usluga strumieniowania telemetrii gRPC HTTP/2
+service TelemetryService {
+  rpc StreamTelemetry(stream TelemetryFrame) returns (TelemetryAck);
+}

@@ -1,0 +1,123 @@
+"""
+Typ wyliczeniowy dostepnych metryk do zapytań historycznych
+"""
+enum MetricType {
+  CPU_USAGE
+  CPU_TEMP
+  MEMORY_USAGE
+  NETWORK_RX
+  NETWORK_TX
+  DISK_USAGE
+}
+
+"""
+Predefiniowane zakresy czasowe dla wykresow historycznych
+"""
+enum TimeRange {
+  RANGE_1H
+  RANGE_6H
+  RANGE_12H
+  RANGE_24H
+  RANGE_3D
+  RANGE_7D
+  CUSTOM_DATE
+}
+
+"""
+Status polaczenia maszyny
+"""
+enum MachineStatus {
+  ONLINE
+  OFFLINE
+}
+
+"""
+Lekki model stanu stacji roboczej dla glownego Dashboardu (FleetSummary)
+"""
+type MachineSummary {
+  machineId: ID!
+  hostname: String!
+  status: MachineStatus!
+  lastSeenTimestamp: Int!
+  cpuUsagePercent: Float
+  cpuTemperatureC: Float
+  networkRxBytesPerSec: Int
+  networkTxBytesPerSec: Int
+}
+
+"""
+Szczegolowy model metryk stacji roboczej (MachineMetrics)
+"""
+type MachineDetail {
+  machineId: ID!
+  hostname: String!
+  status: MachineStatus!
+  timestamp: Int!
+  cpu: DetailedCpuMetrics!
+  memory: DetailedMemoryMetrics!
+  network: DetailedNetworkMetrics!
+  disks: [DiskPartitionInfo!]!
+}
+
+type DetailedCpuMetrics {
+  totalUsagePercent: Float!
+  temperatureC: Float
+}
+
+type DetailedMemoryMetrics {
+  totalBytes: Float!
+  usedBytes: Float!
+  usagePercent: Float!
+}
+
+type DetailedNetworkMetrics {
+  rxBytesPerSec: Float!
+  txBytesPerSec: Float!
+}
+
+type DiskPartitionInfo {
+  mountPoint: String!
+  fsType: String!
+  totalBytes: Float!
+  freeBytes: Float!
+  usagePercent: Float!
+}
+
+"""
+Punkt danych dla wykresow historycznych
+"""
+type HistoricalPoint {
+  timestamp: Int!
+  value: Float!
+}
+
+type Query {
+  """
+  Pobranie zagregowanych punktow historii metryki dla wykresow fl_chart
+  """
+  machineHistory(
+    machineId: ID!
+    metric: MetricType!
+    range: TimeRange!
+    date: String
+  ): [HistoricalPoint!]!
+}
+
+type Mutation {
+  """
+  Wyrejestrowanie i usuniecie nieaktywnej stacji roboczej z pamieci serwera
+  """
+  deleteMachine(machineId: ID!): Boolean!
+}
+
+type Subscription {
+  """
+  Lekki strumien stanu calej floty dla glownego Dashboardu
+  """
+  fleetSummary: [MachineSummary!]!
+
+  """
+  Pelny strumien 1 Hz dla otwartej karty szczegolow maszyny
+  """
+  machineMetrics(machineId: ID!): MachineDetail!
+}
