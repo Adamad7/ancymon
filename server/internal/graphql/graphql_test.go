@@ -388,3 +388,85 @@ func TestGraphQLWebSocket_LegacyAndOmittedSubprotocol(t *testing.T) {
 	}
 }
 
+func TestGraphQLWebSocket_SingleSecWebSocketProtocolHeader(t *testing.T) {
+	authToken := "ws-single-proto-secret"
+	server, _, _ := setupTestServer(t, authToken)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	t.Run("Apollo graphql-ws single header in response", func(t *testing.T) {
+		dialer := websocket.Dialer{
+			Subprotocols: []string{ProtocolGraphQLWS},
+		}
+
+		conn, resp, err := dialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("WebSocket dial failed: %v", err)
+		}
+		defer conn.Close()
+
+		if resp == nil {
+			t.Fatalf("expected non-nil http.Response from dialer")
+		}
+
+		protoValues := resp.Header.Values("Sec-Websocket-Protocol")
+		if len(protoValues) != 1 {
+			t.Fatalf("expected exactly 1 Sec-Websocket-Protocol header value, got %d: %v", len(protoValues), protoValues)
+		}
+		if protoValues[0] != ProtocolGraphQLWS {
+			t.Errorf("expected negotiated subprotocol %q, got %q", ProtocolGraphQLWS, protoValues[0])
+		}
+		if conn.Subprotocol() != ProtocolGraphQLWS {
+			t.Errorf("expected conn.Subprotocol() %q, got %q", ProtocolGraphQLWS, conn.Subprotocol())
+		}
+	})
+
+	t.Run("Modern graphql-transport-ws single header in response", func(t *testing.T) {
+		dialer := websocket.Dialer{
+			Subprotocols: []string{ProtocolGraphQLTransportWS},
+		}
+
+		conn, resp, err := dialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("WebSocket dial failed: %v", err)
+		}
+		defer conn.Close()
+
+		if resp == nil {
+			t.Fatalf("expected non-nil http.Response from dialer")
+		}
+
+		protoValues := resp.Header.Values("Sec-Websocket-Protocol")
+		if len(protoValues) != 1 {
+			t.Fatalf("expected exactly 1 Sec-Websocket-Protocol header value, got %d: %v", len(protoValues), protoValues)
+		}
+		if protoValues[0] != ProtocolGraphQLTransportWS {
+			t.Errorf("expected negotiated subprotocol %q, got %q", ProtocolGraphQLTransportWS, protoValues[0])
+		}
+	})
+
+	t.Run("Multiple client requested header lines merged and negotiated single header in response", func(t *testing.T) {
+		dialer := websocket.Dialer{}
+		reqHeader := http.Header{}
+		reqHeader.Add("Sec-WebSocket-Protocol", "unsupported-proto")
+		reqHeader.Add("Sec-WebSocket-Protocol", ProtocolGraphQLWS)
+
+		conn, resp, err := dialer.Dial(wsURL, reqHeader)
+		if err != nil {
+			t.Fatalf("WebSocket dial failed: %v", err)
+		}
+		defer conn.Close()
+
+		if resp == nil {
+			t.Fatalf("expected non-nil http.Response from dialer")
+		}
+
+		protoValues := resp.Header.Values("Sec-Websocket-Protocol")
+		if len(protoValues) != 1 {
+			t.Fatalf("expected exactly 1 Sec-Websocket-Protocol header value, got %d: %v", len(protoValues), protoValues)
+		}
+		if protoValues[0] != ProtocolGraphQLWS {
+			t.Errorf("expected negotiated subprotocol %q, got %q", ProtocolGraphQLWS, protoValues[0])
+		}
+	})
+}
+

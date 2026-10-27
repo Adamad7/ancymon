@@ -12,6 +12,8 @@ agent/buffer/
 # Configuration with local machine secrets
 config.yaml
 agent/config.yaml
+*.crt
+*.key
 
 # Test binaries and coverage outputs
 *.test

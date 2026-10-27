@@ -59,19 +59,25 @@ func NewWebSocketHandler(reg *watchdog.Registry, res *Resolver, authToken string
 
 // ServeHTTP upgrades HTTP requests to WebSockets and coordinates subscription sessions.
 func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	subprotocol := h.negotiateSubprotocol(r)
-	var responseHeader http.Header
-	if subprotocol != "" {
-		responseHeader = http.Header{
-			"Sec-WebSocket-Protocol": []string{subprotocol},
-		}
+	// If the client sent multiple Sec-WebSocket-Protocol headers, join them with comma
+	// so gorilla/websocket's Subprotocols(r) can parse all client requested protocols.
+	if protocols := r.Header.Values("Sec-WebSocket-Protocol"); len(protocols) > 1 {
+		r.Header.Set("Sec-WebSocket-Protocol", strings.Join(protocols, ", "))
 	}
-	conn, err := h.upgrader.Upgrade(w, r, responseHeader)
+
+	// Do NOT pass Sec-WebSocket-Protocol in responseHeader; gorilla/websocket handles
+	// subprotocol negotiation via upgrader.Subprotocols and writes the header exactly once.
+	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("[GraphQL-WS] Upgrade failed: %v", err)
 		return
 	}
 	defer conn.Close()
+
+	subprotocol := conn.Subprotocol()
+	if subprotocol == "" {
+		subprotocol = h.negotiateSubprotocol(r)
+	}
 
 	session := &wsSession{
 		conn:          conn,
