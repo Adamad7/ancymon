@@ -232,3 +232,159 @@ func TestGraphQLWebSocketSubscriptions(t *testing.T) {
 		t.Errorf("failed to send complete: %v", err)
 	}
 }
+
+func TestGraphQLWebSocket_NegotiateSubprotocol(t *testing.T) {
+	h := &WebSocketHandler{}
+
+	tests := []struct {
+		name     string
+		headers  []string
+		expected string
+	}{
+		{
+			name:     "empty header returns empty",
+			headers:  nil,
+			expected: "",
+		},
+		{
+			name:     "direct graphql-transport-ws",
+			headers:  []string{"graphql-transport-ws"},
+			expected: ProtocolGraphQLTransportWS,
+		},
+		{
+			name:     "direct graphql-ws",
+			headers:  []string{"graphql-ws"},
+			expected: ProtocolGraphQLWS,
+		},
+		{
+			name:     "comma separated preferred graphql-ws",
+			headers:  []string{"graphql-ws, graphql-transport-ws"},
+			expected: ProtocolGraphQLWS,
+		},
+		{
+			name:     "comma separated preferred graphql-transport-ws",
+			headers:  []string{"graphql-transport-ws, graphql-ws"},
+			expected: ProtocolGraphQLTransportWS,
+		},
+		{
+			name:     "multiple headers",
+			headers:  []string{"unsupported-subprotocol", "graphql-ws"},
+			expected: ProtocolGraphQLWS,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodGet, "/graphql", nil)
+			for _, val := range tt.headers {
+				req.Header.Add("Sec-WebSocket-Protocol", val)
+			}
+			got := h.negotiateSubprotocol(req)
+			if got != tt.expected {
+				t.Errorf("negotiateSubprotocol() = %q, expected %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGraphQLWebSocket_LegacyAndOmittedSubprotocol(t *testing.T) {
+	authToken := "ws-legacy-secret"
+	server, reg, _ := setupTestServer(t, authToken)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	cases := []struct {
+		name         string
+		subprotocols []string
+		startType    string // "start" (legacy Apollo)
+		stopType     string // "stop"
+		expectedType string // "data"
+	}{
+		{
+			name:         "Apollo graphql-ws with start",
+			subprotocols: []string{ProtocolGraphQLWS},
+			startType:    "start",
+			stopType:     "stop",
+			expectedType: "data",
+		},
+		{
+			name:         "Omitted subprotocol with start",
+			subprotocols: nil,
+			startType:    "start",
+			stopType:     "stop",
+			expectedType: "data",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dialer := websocket.Dialer{
+				Subprotocols: tc.subprotocols,
+			}
+			conn, _, err := dialer.Dial(wsURL, nil)
+			if err != nil {
+				t.Fatalf("WebSocket dial failed: %v", err)
+			}
+			defer conn.Close()
+
+			// 1. Connection Init
+			if err := conn.WriteJSON(InboundWSMessage{
+				Type: "connection_init",
+				Payload: map[string]interface{}{
+					"authToken": authToken,
+				},
+			}); err != nil {
+				t.Fatalf("failed to send connection_init: %v", err)
+			}
+
+			var ack OutboundWSMessage
+			if err := conn.ReadJSON(&ack); err != nil || ack.Type != "connection_ack" {
+				t.Fatalf("expected connection_ack, got %+v (err: %v)", ack, err)
+			}
+
+			// 2. Subscribe using 'start'
+			subID := "sub-legacy-1"
+			if err := conn.WriteJSON(InboundWSMessage{
+				ID:   subID,
+				Type: tc.startType,
+				Payload: map[string]interface{}{
+					"query": "subscription { fleetSummary { machineId hostname status } }",
+				},
+			}); err != nil {
+				t.Fatalf("failed to send %s: %v", tc.startType, err)
+			}
+
+			// 3. Receive snapshot with expected 'data' type
+			var snap OutboundWSMessage
+			if err := conn.ReadJSON(&snap); err != nil {
+				t.Fatalf("failed to read snapshot: %v", err)
+			}
+			if snap.ID != subID || snap.Type != tc.expectedType {
+				t.Fatalf("expected message type %q, got %q (message: %+v)", tc.expectedType, snap.Type, snap)
+			}
+
+			// 4. Trigger live update and verify 'data' type
+			reg.RecordTelemetry(&ancymonproto.TelemetryFrame{
+				MachineId: "live-legacy-node",
+				Hostname:  "legacy-workstation",
+			})
+
+			var liveUpdate OutboundWSMessage
+			_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			if err := conn.ReadJSON(&liveUpdate); err != nil {
+				t.Fatalf("failed to read live update: %v", err)
+			}
+			if liveUpdate.ID != subID || liveUpdate.Type != tc.expectedType {
+				t.Fatalf("expected live update type %q, got %q (message: %+v)", tc.expectedType, liveUpdate.Type, liveUpdate)
+			}
+
+			// 5. Unsubscribe using 'stop'
+			if err := conn.WriteJSON(InboundWSMessage{
+				ID:   subID,
+				Type: tc.stopType,
+			}); err != nil {
+				t.Fatalf("failed to send %s: %v", tc.stopType, err)
+			}
+		})
+	}
+}
+

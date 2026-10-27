@@ -2,10 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:ancymon_mobile/core/graphql/client.dart';
+import 'package:ancymon_mobile/core/models/connection_config.dart';
+import 'package:ancymon_mobile/core/providers/connection_provider.dart';
 import 'package:ancymon_mobile/graphql/operations/__generated__/fleet_summary.req.gql.dart';
 import 'package:ancymon_mobile/graphql/operations/__generated__/machine_metrics.req.gql.dart';
 import 'package:ferry/ferry.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gql_exec/gql_exec.dart';
 import 'package:gql_websocket_link/gql_websocket_link.dart';
 import 'package:web_socket_channel/io.dart';
 
@@ -311,4 +316,159 @@ void main() {
       wsLink.dispose();
     });
   });
+
+  group('GraphQL WebSocket Subprotocol & Lifecycle Tests', () {
+    late HttpServer mockServer;
+    late int serverPort;
+
+    setUp(() async {
+      mockServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      serverPort = mockServer.port;
+    });
+
+    tearDown(() async {
+      await mockServer.close(force: true);
+    });
+
+    test('WebSocket connection request transmits graphql-ws subprotocol in handshake', () async {
+      final negotiatedProtocol = Completer<String?>();
+      final receivedHeaders = Completer<List<String>?>();
+
+      mockServer.listen((HttpRequest request) async {
+        if (WebSocketTransformer.isUpgradeRequest(request)) {
+          final requestedProtocols = request.headers['sec-websocket-protocol'];
+          receivedHeaders.complete(requestedProtocols);
+
+          final socket = await WebSocketTransformer.upgrade(
+            request,
+            protocolSelector: (protocols) {
+              if (protocols.contains('graphql-ws')) {
+                return 'graphql-ws';
+              }
+              return null;
+            },
+          );
+
+          negotiatedProtocol.complete(socket.protocol);
+          socket.listen((_) {});
+        }
+      });
+
+      final wsUri = Uri.parse('ws://127.0.0.1:$serverPort/graphql');
+      final channel = IOWebSocketChannel.connect(
+        wsUri,
+        protocols: const ['graphql-ws'],
+      );
+
+      final headers = await receivedHeaders.future.timeout(const Duration(seconds: 3));
+      final negotiated = await negotiatedProtocol.future.timeout(const Duration(seconds: 3));
+
+      expect(headers, isNotNull);
+      expect(headers!.any((h) => h.contains('graphql-ws')), isTrue,
+          reason: 'Handshake must transmit graphql-ws in Sec-WebSocket-Protocol');
+      expect(negotiated, equals('graphql-ws'),
+          reason: 'Server must successfully negotiate graphql-ws subprotocol');
+
+      await channel.sink.close();
+    });
+
+    test('SplitLink disposes both left and right links cleanly', () async {
+      var leftDisposed = false;
+      var rightDisposed = false;
+
+      final leftMock = _MockDisposableLink(() => leftDisposed = true);
+      final rightMock = _MockDisposableLink(() => rightDisposed = true);
+
+      final splitLink = SplitLink(
+        test: (_) => false,
+        left: leftMock,
+        right: rightMock,
+      );
+
+      await splitLink.dispose();
+      expect(leftDisposed, isTrue);
+      expect(rightDisposed, isTrue);
+    });
+
+    test('AncyMonClient.dispose invokes both client and link disposal', () async {
+      var linkDisposed = false;
+      final mockLink = _MockDisposableLink(() => linkDisposed = true);
+
+      final client = AncyMonClient(link: mockLink);
+      await client.dispose();
+
+      expect(linkDisposed, isTrue);
+    });
+
+    test('ferryClientProvider lifecycle cleans up client upon provider container disposal', () async {
+      const validDerCertBase64 =
+          'MIIBkTCCATegAwIBAgIUOD+0iYHm45WuhwZre1LNL4sn8cYwCgYIKoZIzj0EAwIw'
+          'HjEcMBoGA1UEAwwTQW5jeU1vbiBJbnRlcm5hbCBDQTAeFw0yNjEwMjcxMDI1MTJa'
+          'Fw0yNzEwMjcxMDI1MTJaMB4xHDAaBgNVBAMME0FuY3lNb24gSW50ZXJuYWwgQ0Ew'
+          'WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATJvlNovr82UbNMgVpuHfczmEfxvE7d'
+          '43j/fdmyoFQXBO/X6SxPvTbgvIoHAENq1kF5pnshwtvFKihzNNYoHEYEo1MwUTAd'
+          'BgNVHQ4EFgQUcYp6gKh7BejwwPD4QSo4bWGA824wHwYDVR0jBBgwFoAUcYp6gKh7'
+          'BejwwPD4QSo4bWGA824wDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBF'
+          'AiEAsFjvEZaVbw/+4u6LSM03ktxighxPkXsNJzHfn6UeejcCIA2He28qo6z6kwiw'
+          '0riJyLngbNVJUlEmvGXWfBzoHzJf';
+
+      const testConfig = ConnectionConfig(
+        ip: '127.0.0.1',
+        port: 443,
+        token: 'test-token-123',
+        ca: validDerCertBase64,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          connectionConfigProvider.overrideWith(
+            (ref) => _MockConnectionConfigNotifier(testConfig),
+          ),
+        ],
+      );
+
+      final client = container.read(ferryClientProvider);
+      expect(client, isNotNull);
+      expect(client, isA<AncyMonClient>());
+
+      // Disposing container executes ref.onDispose callback cleanly
+      container.dispose();
+    });
+  });
+}
+
+class _MockDisposableLink extends Link {
+  final void Function() onDispose;
+
+  _MockDisposableLink(this.onDispose);
+
+  @override
+  Stream<Response> request(Request request, [NextLink? forward]) {
+    return const Stream.empty();
+  }
+
+  @override
+  Future<void> dispose() async {
+    onDispose();
+  }
+}
+
+class _MockConnectionConfigNotifier
+    extends StateNotifier<AsyncValue<ConnectionConfig?>>
+    implements ConnectionConfigNotifier {
+  _MockConnectionConfigNotifier(ConnectionConfig config)
+      : super(AsyncValue.data(config));
+
+  @override
+  Future<void> loadStoredConfig() async {}
+
+  @override
+  Future<void> pair(ConnectionConfig config) async {
+    state = AsyncValue.data(config);
+  }
+
+  @override
+  Future<void> unpair() async {
+    state = const AsyncValue.data(null);
+  }
 }

@@ -60,9 +60,13 @@ func NewWebSocketHandler(reg *watchdog.Registry, res *Resolver, authToken string
 // ServeHTTP upgrades HTTP requests to WebSockets and coordinates subscription sessions.
 func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	subprotocol := h.negotiateSubprotocol(r)
-	conn, err := h.upgrader.Upgrade(w, r, http.Header{
-		"Sec-WebSocket-Protocol": []string{subprotocol},
-	})
+	var responseHeader http.Header
+	if subprotocol != "" {
+		responseHeader = http.Header{
+			"Sec-WebSocket-Protocol": []string{subprotocol},
+		}
+	}
+	conn, err := h.upgrader.Upgrade(w, r, responseHeader)
 	if err != nil {
 		log.Printf("[GraphQL-WS] Upgrade failed: %v", err)
 		return
@@ -85,14 +89,18 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebSocketHandler) negotiateSubprotocol(r *http.Request) string {
-	requested := r.Header.Get("Sec-WebSocket-Protocol")
-	if strings.Contains(requested, ProtocolGraphQLTransportWS) {
-		return ProtocolGraphQLTransportWS
+	for _, raw := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for _, part := range strings.Split(raw, ",") {
+			token := strings.TrimSpace(part)
+			if token == ProtocolGraphQLTransportWS {
+				return ProtocolGraphQLTransportWS
+			}
+			if token == ProtocolGraphQLWS {
+				return ProtocolGraphQLWS
+			}
+		}
 	}
-	if strings.Contains(requested, ProtocolGraphQLWS) {
-		return ProtocolGraphQLWS
-	}
-	return ProtocolGraphQLTransportWS
+	return ""
 }
 
 func (h *WebSocketHandler) checkAuthHeaders(r *http.Request) bool {
@@ -255,8 +263,10 @@ func (s *wsSession) handleSubscribe(msg InboundWSMessage) {
 	}
 
 	dataMsgType := "next"
-	if s.subprotocol == ProtocolGraphQLWS {
+	if s.subprotocol == ProtocolGraphQLWS || msg.Type == "start" {
 		dataMsgType = "data"
+	} else if msg.Type == "subscribe" {
+		dataMsgType = "next"
 	}
 
 	stopCh := make(chan struct{})

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:ferry/ferry.dart';
 import 'package:gql/ast.dart';
+import 'package:gql_exec/gql_exec.dart';
 import 'package:gql_http_link/gql_http_link.dart';
 import 'package:gql_websocket_link/gql_websocket_link.dart';
 import 'package:http/io_client.dart';
@@ -37,6 +38,7 @@ Client buildFerryClient({
     null,
     channelGenerator: () => IOWebSocketChannel.connect(
       wsUrl,
+      protocols: const ['graphql-ws'],
       headers: {
         'Authorization': 'Bearer ${config.token}',
       },
@@ -49,16 +51,59 @@ Client buildFerryClient({
   );
 
   // Split traffic: subscriptions over WebSocket, queries/mutations over HTTP
-  final link = Link.split(
-    (request) {
+  final link = SplitLink(
+    test: (request) {
       final defs = request.operation.document.definitions
           .whereType<OperationDefinitionNode>();
       if (defs.isEmpty) return false;
       return defs.first.type == OperationType.subscription;
     },
-    wsLink,
-    httpLink,
+    left: wsLink,
+    right: httpLink,
   );
 
-  return Client(link: link);
+  return AncyMonClient(link: link);
+}
+
+/// A composite [Link] that routes subscription requests to [left] (e.g. WebSocket)
+/// and other operations to [right] (e.g. HTTP), propagating [dispose] to both child links.
+class SplitLink extends Link {
+  final bool Function(Request request) test;
+  final Link left;
+  final Link right;
+
+  SplitLink({
+    required this.test,
+    required this.left,
+    required this.right,
+  });
+
+  @override
+  Stream<Response> request(
+    Request request, [
+    NextLink? forward,
+  ]) =>
+      test(request)
+          ? left.request(request, forward)
+          : right.request(request, forward);
+
+  @override
+  Future<void> dispose() async {
+    await Future.wait([
+      left.dispose(),
+      right.dispose(),
+    ]);
+  }
+}
+
+/// Custom Ferry [Client] that ensures both the internal cache/controllers
+/// and the underlying [Link] chain are cleanly disposed.
+class AncyMonClient extends Client {
+  AncyMonClient({required super.link});
+
+  @override
+  Future<void> dispose() async {
+    await super.dispose();
+    await link.dispose();
+  }
 }

@@ -63,7 +63,11 @@ final ferryClientProvider = Provider<Client?>((ref) {
   return configState.maybeWhen(
     data: (config) {
       if (config == null) return null;
-      return buildFerryClient(config: config);
+      final client = buildFerryClient(config: config);
+      ref.onDispose(() {
+        client.dispose();
+      });
+      return client;
     },
     orElse: () => null,
   );

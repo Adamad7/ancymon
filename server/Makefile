@@ -24,7 +24,11 @@ run:
 
 qr:
 	@echo "Generating mobile pairing QR code..."
-	go run ./cmd/ancymon-qr -dev-ca
+	@if [ -f ../deploy/root.crt ]; then \
+		go run ./cmd/ancymon-qr -ca ../deploy/root.crt; \
+	else \
+		go run ./cmd/ancymon-qr -dev-ca; \
+	fi
 
 clean:
 	@echo "Cleaning binaries..."
