@@ -1,0 +1,16 @@
+query MachineHistory(
+  $machineId: ID!
+  $metric: MetricType!
+  $range: TimeRange!
+  $date: String
+) {
+  machineHistory(
+    machineId: $machineId
+    metric: $metric
+    range: $range
+    date: $date
+  ) {
+    timestamp
+    value
+  }
+}

@@ -1,0 +1,12 @@
+subscription FleetSummary {
+  fleetSummary {
+    machineId
+    hostname
+    status
+    lastSeenTimestamp
+    cpuUsagePercent
+    cpuTemperatureC
+    networkRxBytesPerSec
+    networkTxBytesPerSec
+  }
+}

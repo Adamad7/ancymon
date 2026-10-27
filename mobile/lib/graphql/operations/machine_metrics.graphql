@@ -1,0 +1,28 @@
+subscription MachineMetrics($machineId: ID!) {
+  machineMetrics(machineId: $machineId) {
+    machineId
+    hostname
+    status
+    timestamp
+    cpu {
+      totalUsagePercent
+      temperatureC
+    }
+    memory {
+      totalBytes
+      usedBytes
+      usagePercent
+    }
+    network {
+      rxBytesPerSec
+      txBytesPerSec
+    }
+    disks {
+      mountPoint
+      fsType
+      totalBytes
+      freeBytes
+      usagePercent
+    }
+  }
+}
