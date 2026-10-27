@@ -242,6 +242,7 @@ func (w *WAL) SealActiveSegment() error {
 		w.activePath = ""
 		w.activeSize = 0
 		w.activeSegmentIdx++
+		w.enforceCeilingLocked()
 		return err
 	}
 	return nil

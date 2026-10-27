@@ -51,12 +51,10 @@ func TestGRPCServerAuthenticationAndStreaming(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open stream: %v", err)
 	}
-	err = stream.Send(&ancymonproto.TelemetryFrame{MachineId: "auth-test"})
-	if err == nil {
-		_, err = stream.CloseAndRecv()
-	}
+	_ = stream.Send(&ancymonproto.TelemetryFrame{MachineId: "auth-test"})
+	_, err = stream.CloseAndRecv()
 	if status.Code(err) != codes.Unauthenticated {
-		t.Errorf("expected Unauthenticated code without auth header, got %v", status.Code(err))
+		t.Errorf("expected Unauthenticated code without auth header, got %v: %v", status.Code(err), err)
 	}
 
 	// Case 2: Invalid Bearer token
@@ -65,10 +63,8 @@ func TestGRPCServerAuthenticationAndStreaming(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open stream: %v", err)
 	}
-	err = stream.Send(&ancymonproto.TelemetryFrame{MachineId: "auth-test"})
-	if err == nil {
-		_, err = stream.CloseAndRecv()
-	}
+	_ = stream.Send(&ancymonproto.TelemetryFrame{MachineId: "auth-test"})
+	_, err = stream.CloseAndRecv()
 	if status.Code(err) != codes.Unauthenticated {
 		t.Errorf("expected Unauthenticated code with wrong token, got %v", status.Code(err))
 	}

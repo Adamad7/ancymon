@@ -42,6 +42,7 @@ Client buildFerryClient({
       },
       customClient: httpClient,
     ),
+    autoReconnect: true,
     initialPayload: () => {
       'Authorization': 'Bearer ${config.token}',
     },
