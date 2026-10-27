@@ -1,0 +1,36 @@
+# AncyMon Central Telemetry Server Configuration
+server:
+  # Internal cleartext gRPC port proxied by Caddy (h2c)
+  grpc_port: 50051
+
+  # Internal HTTP/WebSocket GraphQL port proxied by Caddy
+  graphql_port: 8080
+
+  # Pre-Shared Key (PSK) secret token required for gRPC ingestion and GraphQL access
+  auth_token: "ancymon-secret-psk-change-me"
+
+  # Public IP / Hostname presented in the terminal QR pairing code (leave blank to auto-detect LAN IP)
+  public_ip: ""
+
+  # Public TLS ingress port terminated by Caddy reverse proxy
+  public_port: 443
+
+  # Path to Caddy's internal ECDSA root CA certificate
+  ca_cert_path: "/data/caddy/pki/authorities/local/root.crt"
+
+victoriametrics:
+  # VictoriaMetrics HTTP base URL
+  url: "http://127.0.0.1:8428"
+
+  # Number of telemetry frames to buffer before flushing to /write
+  batch_size: 100
+
+  # Maximum duration in milliseconds before flushing pending telemetry frames
+  flush_interval_ms: 500
+
+watchdog:
+  # Interval in seconds between heartbeat evaluations
+  check_interval_sec: 5
+
+  # Silence duration in seconds after which an online machine is marked offline
+  offline_timeout_sec: 60

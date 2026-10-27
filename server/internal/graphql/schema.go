@@ -1,0 +1,127 @@
+package graphql
+
+// RawSchemaSDL contains the exact GraphQL SDL matching schema.graphql.
+const RawSchemaSDL = `"""
+Supported hardware telemetry metrics for historical time-series queries
+"""
+enum MetricType {
+  CPU_USAGE
+  CPU_TEMP
+  MEMORY_USAGE
+  NETWORK_RX
+  NETWORK_TX
+  DISK_USAGE
+}
+
+"""
+Predefined time-range query filters for historical charts
+"""
+enum TimeRange {
+  RANGE_1H
+  RANGE_6H
+  RANGE_12H
+  RANGE_24H
+  RANGE_3D
+  RANGE_7D
+  CUSTOM_DATE
+}
+
+"""
+Connection status of a monitored workstation
+"""
+enum MachineStatus {
+  ONLINE
+  OFFLINE
+}
+
+"""
+Lightweight machine status payload for the main dashboard list (FleetSummary)
+"""
+type MachineSummary {
+  machineId: ID!
+  hostname: String!
+  status: MachineStatus!
+  lastSeenTimestamp: Int!
+  cpuUsagePercent: Float
+  cpuTemperatureC: Float
+  networkRxBytesPerSec: Float
+  networkTxBytesPerSec: Float
+}
+
+"""
+Comprehensive telemetry model emitted for an active machine detail view (MachineMetrics)
+"""
+type MachineDetail {
+  machineId: ID!
+  hostname: String!
+  status: MachineStatus!
+  timestamp: Int!
+  cpu: DetailedCpuMetrics!
+  memory: DetailedMemoryMetrics!
+  network: DetailedNetworkMetrics!
+  disks: [DiskPartitionInfo!]!
+}
+
+type DetailedCpuMetrics {
+  totalUsagePercent: Float!
+  temperatureC: Float
+}
+
+type DetailedMemoryMetrics {
+  totalBytes: Float!
+  usedBytes: Float!
+  usagePercent: Float!
+}
+
+type DetailedNetworkMetrics {
+  rxBytesPerSec: Float!
+  txBytesPerSec: Float!
+}
+
+type DiskPartitionInfo {
+  mountPoint: String!
+  fsType: String!
+  totalBytes: Float!
+  freeBytes: Float!
+  usagePercent: Float!
+}
+
+"""
+Aggregated data point for historical chart plotting
+"""
+type HistoricalPoint {
+  timestamp: Int!
+  value: Float!
+}
+
+type Query {
+  """
+  Query downsampled historical metrics from VictoriaMetrics for fl_chart visualization
+  """
+  machineHistory(
+    machineId: ID!
+    metric: MetricType!
+    range: TimeRange!
+    date: String
+  ): [HistoricalPoint!]!
+}
+
+type Mutation {
+  """
+  Unregister and remove an inactive workstation from the fleet cache and database
+  """
+  deleteMachine(machineId: ID!): Boolean!
+}
+
+type Subscription {
+  """
+  Lightweight live stream of all registered machines for the main dashboard list
+  """
+  fleetSummary: [MachineSummary!]!
+
+  """
+  Full 1 Hz live telemetry stream for an active machine detail view
+  """
+  machineMetrics(machineId: ID!): MachineDetail!
+}
+`
