@@ -10,13 +10,16 @@ server:
   auth_token: "ancymon-secret-psk-change-me"
 
   # Public IP / Hostname presented in the terminal QR pairing code (leave blank to auto-detect LAN IP)
-  public_ip: ""
+  public_ip: "192.168.1.18"
 
   # Public TLS ingress port terminated by Caddy reverse proxy
   public_port: 443
 
   # Path to Caddy's internal ECDSA root CA certificate
   ca_cert_path: "/data/caddy/pki/authorities/local/root.crt"
+
+  # Path to JSON file persisting registered workstation states across restarts
+  state_path: "data/workstations.json"
 
 victoriametrics:
   # VictoriaMetrics HTTP base URL

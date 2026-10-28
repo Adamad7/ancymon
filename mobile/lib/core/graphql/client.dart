@@ -36,14 +36,18 @@ Client buildFerryClient({
   final wsUrl = Uri.parse('wss://${config.ip}:${config.port}/graphql');
   final wsLink = WebSocketLink(
     null,
-    channelGenerator: () => IOWebSocketChannel.connect(
-      wsUrl,
-      protocols: const ['graphql-ws'],
-      headers: {
-        'Authorization': 'Bearer ${config.token}',
-      },
-      customClient: httpClient,
-    ),
+    channelGenerator: () {
+      final channel = IOWebSocketChannel.connect(
+        wsUrl,
+        protocols: const ['graphql-ws'],
+        headers: {
+          'Authorization': 'Bearer ${config.token}',
+        },
+        customClient: httpClient,
+      );
+      channel.ready.ignore();
+      return channel;
+    },
     autoReconnect: true,
     initialPayload: () => {
       'Authorization': 'Bearer ${config.token}',

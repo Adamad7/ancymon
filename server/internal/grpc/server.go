@@ -110,7 +110,25 @@ func (s *Server) GracefulStop() {
 	s.grpcServer.GracefulStop()
 }
 
+// GracefulStopWithTimeout attempts to gracefully terminate active streams within the given timeout.
+// If active streams or RPCs do not terminate within the deadline, it forces a Stop() to unblock.
+func (s *Server) GracefulStopWithTimeout(timeout time.Duration) {
+	stopped := make(chan struct{})
+	go func() {
+		s.grpcServer.GracefulStop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(timeout):
+		log.Printf("[gRPC] Graceful stop timed out after %v; forcing server stop", timeout)
+		s.grpcServer.Stop()
+	}
+}
+
 // Stop forcefully stops the gRPC server.
 func (s *Server) Stop() {
 	s.grpcServer.Stop()
 }
+

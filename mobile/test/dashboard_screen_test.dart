@@ -174,6 +174,74 @@ void main() {
       expect(deleteCalled, isTrue);
       expect(deletedId, equals('host-uuid-2'));
     });
+
+    testWidgets(
+        'Seen timestamp is hidden for online machines seen < 10s ago, but visible for >= 10s or offline',
+        (tester) async {
+      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      final activelyBroadcastingMachine = GFleetSummaryData_fleetSummary(
+        (b) => b
+          ..machineId = 'host-active'
+          ..hostname = 'active-node'
+          ..status = GMachineStatus.ONLINE
+          ..lastSeenTimestamp = nowSec - 2 // Seen 2s ago (< 10s)
+          ..cpuUsagePercent = 20.0
+          ..cpuTemperatureC = 40.0
+          ..networkRxBytesPerSec = 1000.0
+          ..networkTxBytesPerSec = 2000.0,
+      );
+
+      final delayedOnlineMachine = GFleetSummaryData_fleetSummary(
+        (b) => b
+          ..machineId = 'host-delayed'
+          ..hostname = 'delayed-node'
+          ..status = GMachineStatus.ONLINE
+          ..lastSeenTimestamp = nowSec - 15 // Seen 15s ago (>= 10s)
+          ..cpuUsagePercent = 10.0
+          ..cpuTemperatureC = 38.0
+          ..networkRxBytesPerSec = 500.0
+          ..networkTxBytesPerSec = 500.0,
+      );
+
+      final offlineRecentMachine = GFleetSummaryData_fleetSummary(
+        (b) => b
+          ..machineId = 'host-offline-recent'
+          ..hostname = 'offline-node'
+          ..status = GMachineStatus.OFFLINE
+          ..lastSeenTimestamp = nowSec - 3 // Seen 3s ago (< 10s) but offline
+          ..cpuUsagePercent = 0.0
+          ..cpuTemperatureC = 30.0
+          ..networkRxBytesPerSec = 0.0
+          ..networkTxBytesPerSec = 0.0,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            fleetSummaryProvider.overrideWith(
+              (ref) => Stream.value([
+                activelyBroadcastingMachine,
+                delayedOnlineMachine,
+                offlineRecentMachine,
+              ]),
+            ),
+            connectionConfigProvider.overrideWith(
+              (ref) => _DummyConnectionNotifier(const AsyncValue.data(testConfig)),
+            ),
+          ],
+          child: const MaterialApp(home: DashboardScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Find all Seen text widgets:
+      // Should find exactly 2 widgets: for delayed-node and offline-node, NOT for active-node
+      final seenFinder = find.textContaining('Seen:');
+      expect(seenFinder, findsNWidgets(2));
+      expect(find.textContaining('15s ago'), findsOneWidget);
+    });
   });
 }
 

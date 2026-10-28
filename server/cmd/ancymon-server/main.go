@@ -37,7 +37,12 @@ func main() {
 		cfg.Server.GrpcPort, cfg.Server.GraphQLPort, cfg.VictoriaMetrics.URL)
 
 	// 2. Initialize In-Memory Host Registry and Watchdog
-	registry := watchdog.NewRegistry(nil)
+	registry := watchdog.NewRegistry(nil, cfg.Server.StatePath)
+	if err := registry.LoadState(cfg.Server.StatePath); err != nil {
+		log.Printf("[Registry] Warning: Failed to load state from %s: %v", cfg.Server.StatePath, err)
+	} else if count := len(registry.GetFleetSummary()); count > 0 {
+		log.Printf("[Registry] Loaded %d workstation(s) from %s", count, cfg.Server.StatePath)
+	}
 	watchdogWorker := watchdog.NewWatchdog(
 		registry,
 		time.Duration(cfg.Watchdog.CheckIntervalSec)*time.Second,
@@ -108,10 +113,16 @@ func main() {
 	log.Printf("[Server] Received shutdown signal: %v. Initiating graceful shutdown...", sig)
 
 	// Graceful shutdown sequence
-	grpcServer.GracefulStop()
+	grpcServer.GracefulStopWithTimeout(2 * time.Second)
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	_ = httpServer.Shutdown(shutdownCtx)
+
+	if err := registry.SaveState(); err != nil {
+		log.Printf("[Registry] Error persisting state on shutdown: %v", err)
+	} else {
+		log.Println("[Registry] Workstation state successfully persisted.")
+	}
 
 	log.Println("[Server] AncyMon server successfully stopped.")
 }

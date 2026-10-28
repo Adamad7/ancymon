@@ -47,6 +47,10 @@ class MachineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final elapsedSeconds = nowSec - machine.lastSeenTimestamp;
+    final bool shouldShowSeen = !isOnline || elapsedSeconds >= 10;
+
     final cardContent = Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -166,11 +170,13 @@ class MachineCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Seen: ${MetricFormatters.formatTimestamp(machine.lastSeenTimestamp)}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                      ),
+                      if (shouldShowSeen) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Seen: ${MetricFormatters.formatTimestamp(machine.lastSeenTimestamp)}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                        ),
+                      ],
                     ],
                   ),
                 ],

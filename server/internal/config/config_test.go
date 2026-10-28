@@ -20,6 +20,9 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Watchdog.OfflineTimeoutSec != 60 {
 		t.Fatalf("expected OfflineTimeoutSec 60, got %d", cfg.Watchdog.OfflineTimeoutSec)
 	}
+	if cfg.Server.StatePath != "data/workstations.json" {
+		t.Fatalf("expected StatePath data/workstations.json, got %s", cfg.Server.StatePath)
+	}
 }
 
 func TestLoadConfigFile(t *testing.T) {
@@ -28,6 +31,7 @@ server:
   grpc_port: 5555
   graphql_port: 9999
   auth_token: "custom-token"
+  state_path: "custom/path.json"
 victoriametrics:
   url: "http://vm.local:8428/"
   batch_size: 50
@@ -54,6 +58,9 @@ watchdog:
 	if cfg.Server.AuthToken != "custom-token" {
 		t.Errorf("expected custom-token, got %s", cfg.Server.AuthToken)
 	}
+	if cfg.Server.StatePath != "custom/path.json" {
+		t.Errorf("expected custom/path.json, got %s", cfg.Server.StatePath)
+	}
 	if cfg.VictoriaMetrics.URL != "http://vm.local:8428" {
 		t.Errorf("expected URL normalized to http://vm.local:8428, got %s", cfg.VictoriaMetrics.URL)
 	}
@@ -68,6 +75,7 @@ watchdog:
 func TestEnvOverrides(t *testing.T) {
 	t.Setenv("ANCYMON_GRPC_PORT", "60000")
 	t.Setenv("ANCYMON_AUTH_TOKEN", "env-secret")
+	t.Setenv("ANCYMON_STATE_PATH", "env/state.json")
 	t.Setenv("ANCYMON_VM_URL", "http://env-vm:8428")
 
 	cfg, err := LoadConfig("")
@@ -80,6 +88,9 @@ func TestEnvOverrides(t *testing.T) {
 	}
 	if cfg.Server.AuthToken != "env-secret" {
 		t.Errorf("expected env-secret, got %s", cfg.Server.AuthToken)
+	}
+	if cfg.Server.StatePath != "env/state.json" {
+		t.Errorf("expected env/state.json, got %s", cfg.Server.StatePath)
 	}
 	if cfg.VictoriaMetrics.URL != "http://env-vm:8428" {
 		t.Errorf("expected http://env-vm:8428, got %s", cfg.VictoriaMetrics.URL)

@@ -65,11 +65,11 @@ type DiskPartitionInfo struct {
 
 // MachineRecord is the in-memory cache representation of a monitored host.
 type MachineRecord struct {
-	MachineID   string
-	Hostname    string
-	Status      string
-	LastSeen    time.Time
-	LatestFrame *ancymonproto.TelemetryFrame
+	MachineID   string                       `json:"machine_id"`
+	Hostname    string                       `json:"hostname"`
+	Status      string                       `json:"status"`
+	LastSeen    time.Time                    `json:"last_seen"`
+	LatestFrame *ancymonproto.TelemetryFrame `json:"latest_frame,omitempty"`
 }
 
 // ToMachineDetail converts a MachineRecord to a GraphQL MachineDetail model.

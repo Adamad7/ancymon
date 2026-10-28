@@ -33,7 +33,7 @@ class CpuMetricCard extends StatelessWidget {
                 const Icon(Icons.memory, color: Colors.cyanAccent, size: 22),
                 const SizedBox(width: 8),
                 const Text(
-                  'CPU & Thermals',
+                  'CPU',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 const Spacer(),
@@ -117,7 +117,7 @@ class MemoryMetricCard extends StatelessWidget {
                 const Icon(Icons.storage, color: Colors.purpleAccent, size: 22),
                 const SizedBox(width: 8),
                 const Text(
-                  'Physical Memory (RAM)',
+                  'RAM',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 const Spacer(),
@@ -174,7 +174,7 @@ class NetworkMetricCard extends StatelessWidget {
                 Icon(Icons.swap_vert, color: Colors.blueAccent, size: 22),
                 SizedBox(width: 8),
                 Text(
-                  'Network Throughput',
+                  'Network',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ],
@@ -274,7 +274,7 @@ class DisksMetricCard extends StatelessWidget {
                 Icon(Icons.pie_chart, color: Colors.tealAccent, size: 22),
                 SizedBox(width: 8),
                 Text(
-                  'Whitelisted Disk Partitions',
+                  'Disk Partitions',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ],

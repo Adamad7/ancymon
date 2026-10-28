@@ -18,6 +18,7 @@ type ServerConfig struct {
 	PublicIP    string `yaml:"public_ip"`
 	PublicPort  int    `yaml:"public_port"`
 	CaCertPath  string `yaml:"ca_cert_path"`
+	StatePath   string `yaml:"state_path"`
 }
 
 // VictoriaMetricsConfig defines the TSDB connection and buffering parameters.
@@ -50,6 +51,7 @@ func DefaultConfig() *Config {
 			PublicIP:    detectOutboundIP(),
 			PublicPort:  443,
 			CaCertPath:  "/data/caddy/pki/authorities/local/root.crt",
+			StatePath:   "data/workstations.json",
 		},
 		VictoriaMetrics: VictoriaMetricsConfig{
 			URL:             "http://127.0.0.1:8428",
@@ -106,6 +108,9 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if val := os.Getenv("ANCYMON_CA_CERT_PATH"); val != "" {
 		cfg.Server.CaCertPath = strings.TrimSpace(val)
+	}
+	if val := os.Getenv("ANCYMON_STATE_PATH"); val != "" {
+		cfg.Server.StatePath = strings.TrimSpace(val)
 	}
 	if val := os.Getenv("ANCYMON_VM_URL"); val != "" {
 		cfg.VictoriaMetrics.URL = strings.TrimRight(strings.TrimSpace(val), "/")

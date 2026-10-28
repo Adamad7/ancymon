@@ -120,3 +120,66 @@ func TestGRPCServerAuthenticationAndStreaming(t *testing.T) {
 		t.Errorf("unexpected registry detail: %+v", detail)
 	}
 }
+
+func TestGracefulStopWithTimeout(t *testing.T) {
+	authToken := "test-secret-psk-graceful"
+	reg := watchdog.NewRegistry(nil)
+	writer := storage.NewWriter("http://127.0.0.1:9999", 10, 500*time.Millisecond)
+	defer writer.Stop()
+
+	server := NewServer(reg, writer, authToken)
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	defer lis.Close()
+
+	go func() {
+		_ = server.Serve(lis)
+	}()
+
+	conn, err := grpc.NewClient(
+		lis.Addr().String(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer conn.Close()
+
+	client := ancymonproto.NewTelemetryServiceClient(conn)
+	validCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+authToken))
+	stream, err := client.StreamTelemetry(validCtx)
+	if err != nil {
+		t.Fatalf("failed to open stream: %v", err)
+	}
+
+	// Send an initial frame so the stream is actively open
+	if err := stream.Send(&ancymonproto.TelemetryFrame{
+		MachineId: "streaming-host",
+		Hostname:  "active-host",
+	}); err != nil {
+		t.Fatalf("failed to send frame: %v", err)
+	}
+
+	// Verify that GracefulStopWithTimeout terminates within ~300ms despite the active stream
+	start := time.Now()
+	timeout := 300 * time.Millisecond
+	server.GracefulStopWithTimeout(timeout)
+	elapsed := time.Since(start)
+
+	if elapsed > 2*time.Second {
+		t.Errorf("GracefulStopWithTimeout took too long (%v), expected ~%v", elapsed, timeout)
+	}
+
+	// Verify the stream receives EOF / error after server is stopped
+	err = stream.Send(&ancymonproto.TelemetryFrame{MachineId: "streaming-host"})
+	if err == nil {
+		_, err = stream.CloseAndRecv()
+	}
+	if err == nil {
+		t.Errorf("expected stream error after server shutdown, got nil")
+	}
+}
+

@@ -30,7 +30,9 @@ class MetricFormatters {
     final now = DateTime.now();
     final diff = now.difference(dt);
 
-    if (diff.inSeconds < 60) {
+    if (diff.inSeconds <= 0) {
+      return 'Just now';
+    } else if (diff.inSeconds < 60) {
       return '${diff.inSeconds}s ago';
     } else if (diff.inMinutes < 60) {
       return '${diff.inMinutes}m ago';
